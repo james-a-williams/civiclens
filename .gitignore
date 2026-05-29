@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# dbt
+target/
+dbt_packages/
+logs/
+
+# Snowflake / secrets
+*.json
+*.csv
+profiles.yml
+
+# OS
+.DS_Store
