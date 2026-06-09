@@ -16,5 +16,9 @@ logs/
 *.csv
 profiles.yml
 
+# Raw data landing (tracked by .gitkeep, actual files ignored)
+data/raw/**/*.parquet
+data/raw/**/*.json
+
 # OS
 .DS_Store
