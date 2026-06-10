@@ -1,0 +1,59 @@
+version: 2
+
+sources:
+  - name: raw
+    database: CIVICLENS_RAW
+    schema: PUBLIC
+    description: >
+      Raw tables loaded from CivicLens ingestion connectors. One table per connector
+      endpoint. Data is written as-is from each upstream API — no cleaning or
+      transformation has been applied at this layer.
+
+    tables:
+      - name: candidates
+        description: >
+          FEC candidate records from the /candidates/search endpoint. One row per
+          candidate per election cycle. Updated each election cycle (2-year cadence).
+
+      - name: committees
+        description: >
+          FEC political committee records (PACs, party committees, campaign committees)
+          from the /committees endpoint. One row per committee per cycle.
+
+      - name: members
+        description: >
+          Federal legislators (House + Senate) from the Congress.gov /member endpoint.
+          One row per member. Uses bioguideId as the stable cross-congress identifier.
+          Updated at the start of each new Congress (2-year cadence).
+
+      - name: house_committees
+        description: >
+          House of Representatives standing committees from the Congress.gov
+          /committee/house endpoint. One row per committee.
+
+      - name: senate_committees
+        description: >
+          U.S. Senate standing committees from the Congress.gov /committee/senate
+          endpoint. One row per committee.
+
+      - name: people
+        description: >
+          State legislators across all tracked states from the OpenStates /people
+          endpoint. One row per legislator. Includes a connector-added _state field
+          indicating the state abbreviation used for the API request. Updated weekly.
+
+      - name: bills
+        description: >
+          State legislative bills across all tracked states from the OpenStates /bills
+          endpoint. One row per bill. Includes a connector-added _state field.
+          Updated weekly.
+
+      - name: congressional_districts
+        description: >
+          ACS 5-year demographic estimates at the congressional district level from the
+          Census Bureau API. One row per congressional district. Updated annually.
+
+      - name: states
+        description: >
+          ACS 5-year demographic estimates at the state level from the Census Bureau
+          API. One row per state (plus DC). Updated annually.
