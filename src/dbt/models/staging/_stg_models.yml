@@ -1,0 +1,267 @@
+version: 2
+
+models:
+  - name: stg_fec__candidates
+    description: >
+      One row per FEC candidate per election cycle. Sourced from the FEC /candidates/search
+      endpoint. Column names are already snake_case in the raw data; this model casts
+      numeric and boolean fields to their correct types.
+    columns:
+      - name: candidate_id
+        description: FEC-assigned unique identifier for the candidate (e.g. P00000001 for presidential, H for House, S for Senate).
+        tests:
+          - unique
+          - not_null
+      - name: name
+        description: Full legal name of the candidate as registered with the FEC.
+        tests:
+          - not_null
+      - name: office
+        description: Single-letter code for the federal office sought (P = President, H = House, S = Senate).
+      - name: office_full
+        description: Full name of the federal office sought (e.g. "President", "House", "Senate").
+      - name: state
+        description: Two-letter postal abbreviation of the state where the candidate is running. Null for presidential candidates.
+      - name: district
+        description: Two-digit congressional district number. Only populated for House candidates.
+      - name: party
+        description: Three-letter FEC party code (e.g. DEM, REP, IND).
+      - name: party_full
+        description: Full party name (e.g. "Democratic Party", "Republican Party").
+      - name: election_year
+        description: The federal election cycle year this candidate record belongs to (e.g. 2024).
+      - name: incumbent_challenge
+        description: >
+          Indicates whether the candidate is an incumbent (I), challenger (C), or
+          running for an open seat (O).
+      - name: has_raised_funds
+        description: True if the candidate has filed at least one fundraising report with the FEC.
+      - name: load_date
+        description: Date the candidate record was last loaded or updated in the FEC system.
+
+  - name: stg_fec__committees
+    description: >
+      One row per FEC-registered political committee per election cycle. Covers PACs,
+      party committees, candidate campaign committees, and super PACs. Sourced from
+      the FEC /committees endpoint.
+    columns:
+      - name: committee_id
+        description: FEC-assigned unique identifier for the committee (e.g. C00000001).
+        tests:
+          - unique
+          - not_null
+      - name: name
+        description: Full registered name of the committee.
+        tests:
+          - not_null
+      - name: committee_type
+        description: Single-letter FEC code for the committee type (e.g. P = presidential, H = House, S = Senate, N = PAC, Q = party).
+      - name: committee_type_full
+        description: Full description of the committee type (e.g. "Presidential", "Non-Qualified Party Committee").
+      - name: designation
+        description: >
+          Single-letter code indicating the committee's designation (e.g. A = authorized by candidate,
+          J = joint fundraising, P = principal campaign).
+      - name: state
+        description: Two-letter postal abbreviation of the state where the committee is registered.
+      - name: party
+        description: Three-letter FEC party code associated with the committee, if applicable.
+      - name: cycle
+        description: The two-year election cycle this committee record covers (e.g. 2024).
+      - name: organization_type
+        description: >
+          Single-letter code for the type of organization sponsoring the committee
+          (e.g. C = corporation, L = labor, T = trade association, M = membership).
+      - name: filing_frequency
+        description: >
+          How often the committee files reports with the FEC
+          (e.g. M = monthly, Q = quarterly, T = terminated).
+
+  - name: stg_congress__members
+    description: >
+      One row per current or recent federal legislator. Sourced from the Congress.gov
+      /member endpoint. camelCase field names from the API are renamed to snake_case.
+      Nested fields (e.g. terms array) are left as raw VARIANT for the intermediate layer.
+    columns:
+      - name: bioguide_id
+        description: >
+          Stable Library of Congress identifier for a legislator that persists across
+          all congresses and chambers (e.g. A000001). The canonical key for joining
+          member records across datasets.
+        tests:
+          - unique
+          - not_null
+      - name: member_name
+        description: Full name of the legislator as registered with Congress.gov.
+        tests:
+          - not_null
+      - name: party
+        description: Full party name of the legislator (e.g. "Democratic", "Republican", "Independent").
+      - name: state
+        description: Two-letter postal abbreviation of the state the legislator represents.
+        tests:
+          - not_null
+      - name: district
+        description: Congressional district number for House members. Null for Senators.
+      - name: updated_at
+        description: Date the Congress.gov record was last updated.
+
+  - name: stg_congress__house_committees
+    description: >
+      One row per standing committee in the U.S. House of Representatives. Sourced
+      from the Congress.gov /committee/house endpoint. The committee UNION with Senate
+      committees is handled in the intermediate layer.
+    columns:
+      - name: committee_code
+        description: >
+          Unique system code assigned by Congress.gov to identify the committee
+          (e.g. HSJU for House Judiciary). Stable across congresses.
+        tests:
+          - unique
+          - not_null
+      - name: committee_name
+        description: Full official name of the House committee (e.g. "Committee on the Judiciary").
+        tests:
+          - not_null
+      - name: url
+        description: URL to the committee's page on Congress.gov.
+
+  - name: stg_congress__senate_committees
+    description: >
+      One row per standing committee in the U.S. Senate. Sourced from the Congress.gov
+      /committee/senate endpoint. The committee UNION with House committees is handled
+      in the intermediate layer.
+    columns:
+      - name: committee_code
+        description: >
+          Unique system code assigned by Congress.gov to identify the committee
+          (e.g. SSJU for Senate Judiciary). Stable across congresses.
+        tests:
+          - unique
+          - not_null
+      - name: committee_name
+        description: Full official name of the Senate committee (e.g. "Committee on the Judiciary").
+        tests:
+          - not_null
+      - name: url
+        description: URL to the committee's page on Congress.gov.
+
+  - name: stg_openstates__people
+    description: >
+      One row per current state legislator across all tracked states. Sourced from the
+      OpenStates /people endpoint. The _state field is added by the connector to record
+      which state's API endpoint returned the record. Nested fields (current_role) are
+      left as raw VARIANT for flattening in the intermediate layer.
+    columns:
+      - name: openstates_id
+        description: OpenStates-assigned unique identifier for the legislator (OCD person ID format).
+        tests:
+          - unique
+          - not_null
+      - name: name
+        description: Full name of the state legislator.
+        tests:
+          - not_null
+      - name: party
+        description: Political party of the legislator as reported by OpenStates (e.g. "Democratic", "Republican").
+      - name: state
+        description: Two-letter lowercase state abbreviation indicating which state's legislature this person belongs to.
+        tests:
+          - not_null
+      - name: created_at
+        description: Timestamp when this record was first created in the OpenStates database.
+      - name: updated_at
+        description: Timestamp when this record was last updated in the OpenStates database.
+
+  - name: stg_openstates__bills
+    description: >
+      One row per state legislative bill across all tracked states. Sourced from the
+      OpenStates /bills endpoint. The _state field is added by the connector. Nested
+      fields (classification, sponsorships, actions, votes, versions) are left as raw
+      VARIANT for the intermediate layer.
+    columns:
+      - name: bill_id
+        description: OpenStates-assigned unique identifier for the bill (OCD bill ID format).
+        tests:
+          - unique
+          - not_null
+      - name: identifier
+        description: Human-readable bill number as used in the state legislature (e.g. "HB 123", "SB 456").
+        tests:
+          - not_null
+      - name: title
+        description: Official title of the bill as recorded in the state legislative system.
+      - name: state
+        description: Two-letter lowercase state abbreviation for the state where this bill was introduced.
+        tests:
+          - not_null
+      - name: session
+        description: Legislative session identifier during which the bill was introduced (format varies by state).
+      - name: created_at
+        description: Timestamp when this bill record was first created in the OpenStates database.
+      - name: updated_at
+        description: Timestamp when this bill record was last updated in the OpenStates database.
+
+  - name: stg_census__congressional_districts
+    description: >
+      One row per U.S. congressional district. Sourced from the Census Bureau ACS
+      5-year estimates API. Demographic fields are cast from strings (Census API returns
+      all values as strings) to integers. Surrogate keys and geographic joins are handled
+      in the intermediate layer.
+    columns:
+      - name: district_name
+        description: Full Census-formatted geographic name of the district (e.g. "Congressional District 12 (118th Congress), California").
+        tests:
+          - not_null
+      - name: state_fips
+        description: Two-digit FIPS code identifying the state (e.g. "06" for California). Used to join to geographic reference tables.
+        tests:
+          - not_null
+      - name: district_number
+        description: Congressional district number within the state (zero-padded to two digits). "00" indicates an at-large district.
+        tests:
+          - not_null
+      - name: total_population
+        description: Total resident population of the congressional district (ACS 5-year estimate, table B01003).
+      - name: median_household_income
+        description: Median household income in the past 12 months (inflation-adjusted dollars), ACS table B19013.
+      - name: pop_white_alone
+        description: Estimated population identifying as White alone (not in combination with another race), ACS table B02001.
+      - name: pop_black_alone
+        description: Estimated population identifying as Black or African American alone, ACS table B02001.
+      - name: pop_hispanic_latino
+        description: Estimated population of Hispanic or Latino origin (any race), ACS table B03001.
+      - name: pop_bachelors_degree
+        description: Estimated population 25 years and older with a bachelor's degree as their highest level of education, ACS table B15003.
+      - name: pop_health_insurance
+        description: Estimated civilian noninstitutionalized population with health insurance coverage, ACS table B27001.
+
+  - name: stg_census__states
+    description: >
+      One row per U.S. state (plus DC). Sourced from the Census Bureau ACS 5-year
+      estimates API at the state geography level. Demographic fields are cast from
+      strings to integers.
+    columns:
+      - name: state_name
+        description: Full name of the state (e.g. "California", "New York", "District of Columbia").
+        tests:
+          - not_null
+      - name: state_fips
+        description: Two-digit FIPS code uniquely identifying the state (e.g. "06" for California).
+        tests:
+          - unique
+          - not_null
+      - name: total_population
+        description: Total resident population of the state (ACS 5-year estimate, table B01003).
+      - name: median_household_income
+        description: Median household income in the past 12 months (inflation-adjusted dollars), ACS table B19013.
+      - name: pop_white_alone
+        description: Estimated population identifying as White alone (not in combination with another race), ACS table B02001.
+      - name: pop_black_alone
+        description: Estimated population identifying as Black or African American alone, ACS table B02001.
+      - name: pop_hispanic_latino
+        description: Estimated population of Hispanic or Latino origin (any race), ACS table B03001.
+      - name: pop_bachelors_degree
+        description: Estimated population 25 years and older with a bachelor's degree as their highest level of education, ACS table B15003.
+      - name: pop_health_insurance
+        description: Estimated civilian noninstitutionalized population with health insurance coverage, ACS table B27001.

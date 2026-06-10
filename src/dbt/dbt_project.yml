@@ -18,6 +18,9 @@ models:
   civiclens:
     staging:
       +materialized: view
+      +persist_docs:
+        relation: true
+        columns: true
     intermediate:
       +materialized: ephemeral
     marts:
