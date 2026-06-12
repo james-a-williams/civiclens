@@ -6,7 +6,6 @@ select
     designation,
     state,
     party,
-    cycle::int          as cycle,
     organization_type,
     filing_frequency
 from {{ source('raw', 'committees') }}

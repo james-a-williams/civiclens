@@ -72,7 +72,7 @@ class OpenStatesConnector(BaseConnector):
         return data.get("results", [])
 
     def fetch_all(self, states: list[str] | None = None) -> dict[str, list[dict]]:  # type: ignore[override]
-        target_states = states or ["ca", "tx", "ny", "fl", "il"]
+        target_states = states or ["ny"]
         all_people: list[dict] = []
         all_bills: list[dict] = []
 

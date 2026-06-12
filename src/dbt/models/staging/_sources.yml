@@ -57,3 +57,17 @@ sources:
         description: >
           ACS 5-year demographic estimates at the state level from the Census Bureau
           API. One row per state (plus DC). Updated annually.
+
+      - name: ny_boe_activity
+        description: >
+          NY State Board of Elections public campaign finance activity. One row per
+          candidate per election year. Shows public funds received and qualified campaign
+          expenditures for state candidates (assembly, senate, governor, AG). Sourced
+          from manually downloaded CSV files in data/raw/ny_boe/. Covers 2024–2026.
+
+      - name: nyc_cfb_contributions
+        description: >
+          NYC Campaign Finance Board contribution records for NYC city races (mayor,
+          city council, public advocate). Sourced from direct CSV downloads at
+          nyccfb.info/follow-the-money/data-library/. One row per contribution.
+          Schema documented in Key-Contribution.csv. Covers election cycles 2017–2025.
