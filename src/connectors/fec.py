@@ -50,6 +50,11 @@ class FECConnector(BaseConnector):
             raise ConnectorError(f"committee {committee_id!r} not found")
         return results[0]
 
+    def get_candidate_totals(self, cycle: int = CURRENT_CYCLE) -> list[dict]:
+        """Financial totals (receipts, disbursements, cash on hand) for all candidates."""
+        params: dict[str, Any] = {"cycle": cycle, "sort": "candidate_id"}
+        return list(self._paginate("/candidates/totals", params, "results"))
+
     def get_contributions(self, candidate_id: str, cycle: int = CURRENT_CYCLE) -> list[dict]:
         """Individual contributions received (Schedule A) for a candidate."""
         params: dict[str, Any] = {
@@ -75,4 +80,11 @@ class FECConnector(BaseConnector):
         logger.info("FEC: fetching committees cycle=%d", cycle)
         committees = self.get_committees(cycle=cycle)
 
-        return {"candidates": candidates, "committees": committees}
+        logger.info("FEC: fetching candidate totals cycle=%d", cycle)
+        candidate_totals = self.get_candidate_totals(cycle=cycle)
+
+        return {
+            "candidates": candidates,
+            "committees": committees,
+            "candidate_totals": candidate_totals,
+        }

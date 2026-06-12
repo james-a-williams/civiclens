@@ -67,16 +67,33 @@ def test_get_committees_returns_records(connector):
 
 
 @rsps.activate
+def test_get_candidate_totals_returns_records(connector):
+    rsps.add(
+        rsps.GET,
+        f"{BASE}/candidates/totals",
+        json={
+            "results": [
+                {
+                    "candidate_id": "H4MN03159",
+                    "cycle": 2024,
+                    "receipts": 150000.0,
+                    "disbursements": 120000.0,
+                    "last_cash_on_hand_end_period": 30000.0,
+                }
+            ],
+            "pagination": {"page": 1, "pages": 1},
+        },
+    )
+    totals = connector.get_candidate_totals(cycle=2024)
+    assert len(totals) == 1
+    assert totals[0]["receipts"] == 150000.0
+
+
+@rsps.activate
 def test_fetch_all_returns_expected_keys(connector):
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/candidates/search",
-        json={"results": [], "pagination": {"page": 1, "pages": 1}},
-    )
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committees",
-        json={"results": [], "pagination": {"page": 1, "pages": 1}},
-    )
+    empty = {"results": [], "pagination": {"page": 1, "pages": 1}}
+    rsps.add(rsps.GET, f"{BASE}/candidates/search", json=empty)
+    rsps.add(rsps.GET, f"{BASE}/committees", json=empty)
+    rsps.add(rsps.GET, f"{BASE}/candidates/totals", json=empty)
     result = connector.fetch_all(cycle=2024)
-    assert set(result.keys()) == {"candidates", "committees"}
+    assert set(result.keys()) == {"candidates", "committees", "candidate_totals"}

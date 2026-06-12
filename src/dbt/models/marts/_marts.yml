@@ -1,0 +1,107 @@
+version: 2
+
+models:
+  - name: dim_candidates
+    description: >
+      One row per candidacy (person x office sought x cycle) across federal
+      (FEC), NY state (BOE), and NYC local (CFB) sources. Powers candidate
+      search and profiles.
+    columns:
+      - name: candidacy_key
+        tests:
+          - unique
+          - not_null
+      - name: display_name
+        tests:
+          - not_null
+      - name: level
+        tests:
+          - accepted_values:
+              values: ['federal', 'state', 'local']
+      - name: source_system
+        tests:
+          - accepted_values:
+              values: ['fec', 'ny_boe', 'nyc_cfb']
+
+  - name: dim_legislators
+    description: >
+      One row per sitting legislator, federal (Congress.gov) and state
+      (OpenStates). person_key links to the identity crosswalk.
+    columns:
+      - name: legislator_id
+        tests:
+          - unique
+          - not_null
+      - name: person_key
+        tests:
+          - not_null
+      - name: chamber
+        tests:
+          - accepted_values:
+              values: ['house', 'senate']
+
+  - name: dim_districts
+    description: >
+      One row per geography — congressional districts and states — with ACS
+      demographic estimates and derived rates.
+    columns:
+      - name: district_key
+        tests:
+          - unique
+          - not_null
+      - name: geo_level
+        tests:
+          - accepted_values:
+              values: ['congressional_district', 'state']
+
+  - name: dim_committees
+    description: One row per FEC committee with decoded type/designation labels.
+    columns:
+      - name: committee_id
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_contributions
+    description: >
+      One row per contribution transaction, unified across sources. NYC CFB
+      only until FEC Schedule A lands in Phase 3. Independent-spender (IS)
+      committees are excluded.
+    columns:
+      - name: contribution_key
+        tests:
+          - unique
+          - not_null
+      - name: candidacy_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_candidates')
+              field: candidacy_key
+      - name: donor_key
+        tests:
+          - not_null
+      - name: amount
+        tests:
+          - not_null
+
+  - name: fct_candidate_finance
+    description: >
+      One row per candidacy per cycle. Field coverage varies by source system
+      — the coverage column tells the API/UI which fields are meaningful.
+    columns:
+      - name: candidacy_key
+        tests:
+          - unique
+          - not_null
+          # warn only: FEC totals for a cycle include candidates whose
+          # election year is outside the candidates-search snapshot
+          - relationships:
+              to: ref('dim_candidates')
+              field: candidacy_key
+              config:
+                severity: warn
+      - name: coverage
+        tests:
+          - accepted_values:
+              values: ['fec', 'ny_boe', 'nyc_cfb']

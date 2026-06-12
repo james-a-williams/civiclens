@@ -20,6 +20,11 @@ sources:
           FEC political committee records (PACs, party committees, campaign committees)
           from the /committees endpoint. One row per committee per cycle.
 
+      - name: candidate_totals
+        description: >
+          FEC candidate financial totals (receipts, disbursements, cash on hand)
+          from the /candidates/totals endpoint. One row per candidate per cycle.
+
       - name: members
         description: >
           Federal legislators (House + Senate) from the Congress.gov /member endpoint.

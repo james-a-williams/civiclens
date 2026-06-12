@@ -22,3 +22,7 @@ data/raw/**/*.json
 
 # OS
 .DS_Store
+
+# Interview prep (local only)
+src/dbt/analyses/interview_docs/
+docs/python-scripts-study-guide.md
