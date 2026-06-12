@@ -1,6 +1,6 @@
 select
-    "systemCode"    as committee_code,
-    "name"          as committee_name,
-    "url"           as url
+    systemcode      as committee_code,
+    name            as committee_name,
+    url
 from {{ source('raw', 'house_committees') }}
-where "systemCode" is not null
+where systemcode is not null

@@ -28,16 +28,14 @@ models:
         description: Three-letter FEC party code (e.g. DEM, REP, IND).
       - name: party_full
         description: Full party name (e.g. "Democratic Party", "Republican Party").
-      - name: election_year
-        description: The federal election cycle year this candidate record belongs to (e.g. 2024).
       - name: incumbent_challenge
         description: >
           Indicates whether the candidate is an incumbent (I), challenger (C), or
           running for an open seat (O).
       - name: has_raised_funds
         description: True if the candidate has filed at least one fundraising report with the FEC.
-      - name: load_date
-        description: Date the candidate record was last loaded or updated in the FEC system.
+      - name: load_at
+        description: UTC timestamp when this record was loaded into the raw layer by the CivicLens ingestion pipeline.
 
   - name: stg_fec__committees
     description: >
@@ -66,8 +64,6 @@ models:
         description: Two-letter postal abbreviation of the state where the committee is registered.
       - name: party
         description: Three-letter FEC party code associated with the committee, if applicable.
-      - name: cycle
-        description: The two-year election cycle this committee record covers (e.g. 2024).
       - name: organization_type
         description: >
           Single-letter code for the type of organization sponsoring the committee
@@ -265,3 +261,68 @@ models:
         description: Estimated population 25 years and older with a bachelor's degree as their highest level of education, ACS table B15003.
       - name: pop_health_insurance
         description: Estimated civilian noninstitutionalized population with health insurance coverage, ACS table B27001.
+
+  - name: stg_ny_boe__activity
+    description: >
+      One row per candidate per election year. Sourced from NY State Board of Elections
+      public campaign finance CSV files (data/raw/ny_boe/). Shows public funds received
+      and qualified campaign expenditures for state candidates (assembly, senate, governor,
+      AG). Covers election years 2024–2026.
+    columns:
+      - name: election_year
+        description: Election year (e.g. 2024, 2026).
+        tests:
+          - not_null
+      - name: filer_id
+        description: NYSBOE-assigned ID for the candidate's campaign committee.
+        tests:
+          - not_null
+      - name: committee_name
+        description: Registered name of the candidate's campaign committee.
+      - name: candidate_name
+        description: Full name of the candidate as registered with the NYSBOE.
+        tests:
+          - not_null
+      - name: office
+        description: Office sought by the candidate (e.g. "Member of Assembly", "State Senator").
+      - name: district
+        description: District number of the race.
+      - name: public_funds_received
+        description: Total public matching funds received by the candidate in USD.
+      - name: qualified_campaign_expenditures
+        description: Total qualified campaign expenditures in USD (the basis for public fund matching).
+      - name: load_at
+        description: UTC timestamp when this record was loaded into the raw layer.
+
+  - name: stg_nyc_cfb__contributions
+    description: >
+      One row per contribution to a NYC city candidate committee. Sourced from the NYC
+      Campaign Finance Board data library (nyccfb.info). Covers mayor, city council,
+      public advocate, borough president, and comptroller races. Election cycles 2017–2025.
+    columns:
+      - name: election_cycle
+        description: Election cycle year (e.g. 2021, 2025).
+        tests:
+          - not_null
+      - name: recipient_id
+        description: CFB-assigned unique ID for the candidate committee.
+        tests:
+          - not_null
+      - name: contributor_name
+        description: Full name of the contributor.
+      - name: contributor_type
+        description: Code indicating contributor type (CAN = Candidate, CORP = Corporation, EMPO = Labor Union, PART = Partnership, OTHR = Other).
+      - name: amount
+        description: Contribution amount in USD.
+        tests:
+          - not_null
+      - name: matchable_amount
+        description: The portion of the contribution eligible for NYC public matching funds.
+      - name: employer_name
+        description: Contributor's employer name.
+      - name: occupation
+        description: Contributor's occupation.
+      - name: payment_method
+        description: Method of payment (0 = Unknown, 1 = Cash, 2 = Check, 3 = Other, 4 = Credit Card, 5 = Money Order).
+      - name: load_at
+        description: UTC timestamp when this record was loaded into the raw layer.

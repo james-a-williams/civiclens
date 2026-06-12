@@ -22,6 +22,9 @@ dependencies = [
     "textblob>=0.18",
 ]
 
+[project.scripts]
+civiclens-load = "connectors.snowflake_loader:load_all"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2",

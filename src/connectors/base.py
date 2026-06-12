@@ -1,4 +1,5 @@
 import logging
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Iterator
@@ -25,8 +26,8 @@ class BaseConnector(ABC):
         self._session = requests.Session()
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=2, max=60),
         retry=retry_if_exception_type(requests.RequestException),
         reraise=True,
     )
@@ -34,6 +35,10 @@ class BaseConnector(ABC):
         url = f"{self.BASE_URL}{path}"
         logger.debug("GET %s params=%s", url, params)
         resp = self._session.get(url, params=params, timeout=30)
+        if resp.status_code == 429:
+            retry_after = int(resp.headers.get("Retry-After", 30))
+            logger.warning("429 rate limit — sleeping %ds before retry", retry_after)
+            time.sleep(retry_after)
         resp.raise_for_status()
         return resp.json()
 
