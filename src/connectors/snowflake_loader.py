@@ -25,7 +25,9 @@ def load_table(conn, records: list[dict], table_name: str) -> None:
     df["load_at"] = datetime.now(timezone.utc)
     df.columns = df.columns.str.upper().str.replace(" ", "_")
     df = df.loc[:, df.columns.notna()]  # drop phantom columns from trailing CSV commas
-    write_pandas(conn, df, table_name.upper(), auto_create_table=True, overwrite=True, use_logical_type=True)
+    write_pandas(
+        conn, df, table_name.upper(), auto_create_table=True, overwrite=True, use_logical_type=True
+    )
     logger.info("load_table: wrote %d rows → %s", len(df), table_name)
 
 

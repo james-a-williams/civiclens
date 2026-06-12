@@ -18,6 +18,10 @@ class ConnectorError(Exception):
     pass
 
 
+class RetryableHTTPError(requests.RequestException):
+    """Server-side or rate-limit failure worth retrying (429, 5xx)."""
+
+
 class BaseConnector(ABC):
     SOURCE_NAME: str = ""
     BASE_URL: str = ""
@@ -28,7 +32,9 @@ class BaseConnector(ABC):
     @retry(
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type(requests.RequestException),
+        retry=retry_if_exception_type(
+            (requests.ConnectionError, requests.Timeout, RetryableHTTPError)
+        ),
         reraise=True,
     )
     def _get(self, path: str, params: dict[str, Any] | None = None) -> dict:
@@ -39,6 +45,9 @@ class BaseConnector(ABC):
             retry_after = int(resp.headers.get("Retry-After", 30))
             logger.warning("429 rate limit — sleeping %ds before retry", retry_after)
             time.sleep(retry_after)
+            raise RetryableHTTPError(f"429 rate limited: {url}", response=resp)
+        if resp.status_code >= 500:
+            raise RetryableHTTPError(f"{resp.status_code} server error: {url}", response=resp)
         resp.raise_for_status()
         return resp.json()
 

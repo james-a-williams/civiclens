@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Iterator
+from typing import Any
 
 from .base import BaseConnector, ConnectorError
 
