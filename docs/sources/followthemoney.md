@@ -1,8 +1,8 @@
 # Source: FollowTheMoney API
 
-**Phase:** MVP  
-**Status:** Active ✅  
-**Classification:** Foundational
+**Phase:** —  
+**Status:** Deprecated ❌ — 2026-06-12. FollowTheMoney merged into OpenSecrets; the site is unmaintained and **data is no longer updated** (frozen at the 2024 election cycle). Removed from the stack.  
+**Classification:** Do not use. For state campaign finance, use state portals directly (NY BOE is already ingested; add other states' portals as they're prioritized).
 
 ---
 

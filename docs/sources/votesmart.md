@@ -1,7 +1,7 @@
 # Source: VoteSmart API
 
 **Phase:** MVP  
-**Status:** Active ✅  
+**Status:** Active ✅ — re-verified 2026-06-12. Free key registration open at votesmart.org/share/api. A newer OpenAPI/Swagger interface also exists at api.paas.votesmart.io/api — check which the issued key targets before building the connector.  
 **Classification:** Foundational
 
 ---
