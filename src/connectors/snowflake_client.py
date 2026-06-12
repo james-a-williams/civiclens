@@ -3,7 +3,12 @@ from pathlib import Path
 
 import snowflake.connector
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, load_pem_private_key
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    load_pem_private_key,
+)
 
 
 def _load_private_key() -> bytes:
@@ -17,7 +22,9 @@ def _load_private_key() -> bytes:
     )
 
 
-def get_connection(database: str | None = None, schema: str | None = None) -> snowflake.connector.SnowflakeConnection:
+def get_connection(
+    database: str | None = None, schema: str | None = None
+) -> snowflake.connector.SnowflakeConnection:
     return snowflake.connector.connect(
         account=os.environ["SNOWFLAKE_ACCOUNT"],
         user=os.environ["SNOWFLAKE_USER"],

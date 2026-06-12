@@ -2,7 +2,7 @@ import pytest
 import requests
 import responses as rsps
 
-from src.connectors.base import BaseConnector, ConnectorError
+from src.connectors.base import BaseConnector
 
 
 class _Connector(BaseConnector):

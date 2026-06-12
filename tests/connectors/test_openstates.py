@@ -54,7 +54,10 @@ def test_get_people_empty(connector):
     rsps.add(
         rsps.GET,
         f"{BASE}/people",
-        json={"results": [], "pagination": {"page": 1, "max_page": 1, "per_page": 20, "total_items": 0}},
+        json={
+            "results": [],
+            "pagination": {"page": 1, "max_page": 1, "per_page": 20, "total_items": 0},
+        },
     )
     assert connector.get_people("ca") == []
 
@@ -86,7 +89,10 @@ def test_api_key_sent_in_header(connector):
     rsps.add(
         rsps.GET,
         f"{BASE}/people",
-        json={"results": [], "pagination": {"page": 1, "max_page": 1, "per_page": 20, "total_items": 0}},
+        json={
+            "results": [],
+            "pagination": {"page": 1, "max_page": 1, "per_page": 20, "total_items": 0},
+        },
     )
     connector.get_people("ca")
     assert rsps.calls[0].request.headers.get("X-API-Key") == "test-key"

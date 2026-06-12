@@ -3,7 +3,10 @@ import pytest
 from src.connectors.base import ConnectorError
 from src.connectors.ny_boe import NYBOEConnector
 
-SAMPLE_HEADER = "Election Year,Filer ID,Committee Name,Candidate Name,Office,District,Public Funds Received,Qualified Campaign Expenditures\n"
+SAMPLE_HEADER = (
+    "Election Year,Filer ID,Committee Name,Candidate Name,Office,District,"
+    "Public Funds Received,Qualified Campaign Expenditures\n"
+)
 SAMPLE_ROW = '2024,13466,Friends of Jane Smith,Jane Smith,Member of Assembly,42,50000.00,45000.00\n'
 
 

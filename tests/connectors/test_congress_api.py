@@ -82,7 +82,8 @@ def test_fetch_all_returns_expected_keys(connector):
             },
         )
     rsps.add(rsps.GET, f"{BASE}/member", json={"members": [], "pagination": {"next": None}})
-    rsps.add(rsps.GET, f"{BASE}/committee/house", json={"committees": [], "pagination": {"next": None}})
-    rsps.add(rsps.GET, f"{BASE}/committee/senate", json={"committees": [], "pagination": {"next": None}})
+    empty_committees = {"committees": [], "pagination": {"next": None}}
+    rsps.add(rsps.GET, f"{BASE}/committee/house", json=empty_committees)
+    rsps.add(rsps.GET, f"{BASE}/committee/senate", json=empty_committees)
     result = connector.fetch_all(congress=119)
     assert set(result.keys()) == {"members", "house_committees", "senate_committees"}
