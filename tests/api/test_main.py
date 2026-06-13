@@ -137,3 +137,125 @@ def test_finance_no_rows_for_real_candidacy(monkeypatch):
 def test_finance_404_for_unknown_candidacy(monkeypatch):
     monkeypatch.setattr(main.db, "query", _fake_query({}))
     assert client.get("/candidates/nope/finance").status_code == 404
+
+
+# ── Bill endpoints ────────────────────────────────────────────────────────────
+
+BILL_ROW_NO_SUMMARY = {
+    "bill_key": "bk1",
+    "source_system": "openstates",
+    "level": "state",
+    "state": "NY",
+    "congress": None,
+    "session": "2023-2024",
+    "bill_type": None,
+    "identifier": "HB 1234",
+    "title": "An Act to improve things",
+    "abstract": "This bill improves many things.",
+    "url": "https://openstates.org/ny/bills/1234",
+    "latest_action_date": None,
+    "latest_action_text": None,
+    "update_date": "2024-01-15",
+    "plain_summary": None,
+    "eli5": None,
+    "model_id": None,
+    "generated_at": None,
+    "summary_status": "none",
+}
+
+BILL_ROW_WITH_SUMMARY = {
+    **BILL_ROW_NO_SUMMARY,
+    "plain_summary": "This improves things for New Yorkers.",
+    "eli5": "It makes things better.",
+    "model_id": "claude-haiku-4-5-20251001",
+    "generated_at": "2026-01-01T00:00:00Z",
+    "summary_status": "ready",
+}
+
+
+class _FakeClaude:
+    class _FakeMessages:
+        def create(self, **kwargs):
+            class _Resp:
+                content = [
+                    type("C", (), {"text": '{"plain_summary": "Generated summary.", "eli5": "Simple."}'})()
+                ]
+            return _Resp()
+
+    messages = _FakeMessages()
+
+
+def test_get_bill_no_summary(monkeypatch):
+    monkeypatch.setattr(main.db, "query", _fake_query({"from dim_bills": [BILL_ROW_NO_SUMMARY]}))
+    resp = client.get("/bills/bk1")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["identifier"] == "HB 1234"
+    assert body["summary_status"] == "none"
+    assert body["plain_summary"] is None
+
+
+def test_get_bill_with_summary(monkeypatch):
+    monkeypatch.setattr(main.db, "query", _fake_query({"from dim_bills": [BILL_ROW_WITH_SUMMARY]}))
+    resp = client.get("/bills/bk1")
+    assert resp.status_code == 200
+    assert resp.json()["summary_status"] == "ready"
+    assert resp.json()["plain_summary"] == "This improves things for New Yorkers."
+
+
+def test_get_bill_404(monkeypatch):
+    monkeypatch.setattr(main.db, "query", _fake_query({}))
+    assert client.get("/bills/nope").status_code == 404
+
+
+def test_summarize_generates_and_inserts(monkeypatch):
+    executes = []
+    monkeypatch.setattr(main.db, "query", _fake_query({"from dim_bills": [BILL_ROW_NO_SUMMARY]}))
+    monkeypatch.setattr(main.db, "execute", lambda sql, params=None: executes.append((sql, params)))
+    monkeypatch.setattr(main, "_get_claude", lambda: _FakeClaude())
+
+    resp = client.post("/bills/bk1/summarize")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["summary_status"] == "ready"
+    assert body["plain_summary"] == "Generated summary."
+    assert body["eli5"] == "Simple."
+    assert any("insert into app.bill_summaries" in sql.lower() for sql, _ in executes)
+
+
+def test_summarize_idempotent_when_ready(monkeypatch):
+    executes = []
+    monkeypatch.setattr(main.db, "query", _fake_query({"from dim_bills": [BILL_ROW_WITH_SUMMARY]}))
+    monkeypatch.setattr(main.db, "execute", lambda sql, params=None: executes.append((sql, params)))
+    monkeypatch.setattr(main, "_get_claude", lambda: _FakeClaude())
+
+    resp = client.post("/bills/bk1/summarize")
+    assert resp.status_code == 200
+    assert resp.json()["summary_status"] == "ready"
+    assert resp.json()["plain_summary"] == "This improves things for New Yorkers."
+    assert executes == []  # no INSERT when summary already exists
+
+
+def test_summarize_404(monkeypatch):
+    monkeypatch.setattr(main.db, "query", _fake_query({}))
+    assert client.post("/bills/nope/summarize").status_code == 404
+
+
+def test_record_returns_sponsored_and_votes(monkeypatch):
+    sponsored = [{"bill_key": "bk1", "identifier": "HB 1234", "title": "An Act", "is_primary": True}]
+    votes = [{"bill_key": "bk1", "vote_option": "yes", "vote_date": "2024-01-10"}]
+    fake = _fake_query({
+        "from fct_bill_sponsorships": sponsored,
+        "from fct_votes": votes,
+    })
+    monkeypatch.setattr(main.db, "query", fake)
+    resp = client.get("/candidates/abc123/record")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["sponsored"][0]["identifier"] == "HB 1234"
+    assert body["votes"][0]["vote_option"] == "yes"
+
+
+def test_record_404_for_unknown_candidacy(monkeypatch):
+    monkeypatch.setattr(main.db, "query", _fake_query({}))
+    assert client.get("/candidates/nope/record").status_code == 404
