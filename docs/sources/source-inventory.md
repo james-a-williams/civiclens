@@ -12,6 +12,7 @@ _Generated: 2026-06-02. All sources verified active._
 | ProPublica Congress API | Deprecated — no new API keys, historical reference only |
 | X (Twitter) API | Free tier: 1 req/15 min — unusable for a pipeline |
 | NewsAPI | Free tier: non-commercial restriction, 100 req/day cap |
+| FollowTheMoney API | Merged into OpenSecrets — site unmaintained, data frozen at 2024 cycle, no updates (removed 2026-06-12) |
 | LegiScan | Superseded by OpenStates (more open, no restrictive tier) |
 
 ---
@@ -34,7 +35,6 @@ _Minimum set to answer: How closely do I align with this candidate? Who represen
 | # | Source | URL | API | Bulk Download | Scraping | Coverage | Update Freq | Cost | Quality | Difficulty | Phase |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 5 | FEC API | api.open.fec.gov | Yes | Yes | No | Federal | Real-time | Free | 9/10 | 2/10 | Phase 2 |
-| 6 | FollowTheMoney API | followthemoney.org/our-data/apis | Yes | No | No | All 50 states | Ongoing | Free | 8/10 | 3/10 | Phase 2 |
 | 7 | OpenSecrets Bulk Data | opensecrets.org/bulk-data | No | Yes (CSV) | No | Federal | Annual | Free (approval req'd) | 9/10 | 4/10 | Phase 2 |
 | 8 | GDELT | gdeltproject.org | Yes (DOC API) | Yes | No | Global news | 15-min chunks | Free | 8/10 | 4/10 | Phase 2 |
 | 9 | GovTrack | govtrack.us/data | No | Yes | No | Federal | Daily | Free | 8/10 | 3/10 | Phase 2 |
@@ -61,7 +61,7 @@ _Ranked by value to the core alignment use case: "How closely do my views match 
 4. **Census Bureau API** — District demographics. Context for who candidates represent.
 5. **Research Agent (Claude API)** — Fills VoteSmart gaps by extracting positions from campaign sites, speeches, and news. Already in Week 9 plan.
 6. **FEC API** — Gold standard for federal campaign finance. "Who funds this candidate?" context layer.
-7. **FollowTheMoney API** — State-level equivalent of FEC. Fills the gap for gubernatorial and state legislative races.
+7. ~~FollowTheMoney API~~ — Deprecated 2026-06: merged into OpenSecrets, data frozen at 2024. State finance now requires per-state portals.
 8. **OpenSecrets Bulk CSV** — Enriched FEC data with industry/sector classifications. Adds "which industries fund this candidate?" layer.
 9. **GDELT** — Unlimited free news monitoring. Public domain. Queryable via BigQuery or 15-min CSV drops.
 10. **GovTrack** — Voting statistics (party loyalty, missed votes, issue area breakdown). Useful for nuanced voting record analysis.
@@ -128,7 +128,7 @@ FastAPI → Streamlit
 
 | Data Type | Gap | Recommendation |
 |---|---|---|
-| State campaign finance | Each state has its own system; no federal aggregator | FollowTheMoney covers all 50; use as primary |
+| State campaign finance | Each state has its own system; no national aggregator with current data (FollowTheMoney frozen at 2024 post-merger) | Per-state portals, added as states are prioritized (NY BOE already ingested) |
 | Local/municipal elections | No central source | BallotReady (paid) or Ballotpedia scraping |
 | School board / special districts | Fragmented by jurisdiction | Scrape + manual collection per district |
 | Lobbying (state-level) | 50 separate state systems | NCSL has links; NationalLobbyistIndex covers some |

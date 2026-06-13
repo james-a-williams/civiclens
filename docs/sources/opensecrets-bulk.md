@@ -1,7 +1,7 @@
 # Source: OpenSecrets Bulk Data
 
 **Phase:** Phase 2  
-**Status:** Active ✅  
+**Status:** Active ✅ — verified 2026-06-12. Note: the OpenSecrets **API was discontinued April 15, 2025**; bulk CSV downloads remain available, free for educational use with account signup (opensecrets.org/bulk-data/signup).  
 **Classification:** Nice to have (enrichment layer on top of FEC)
 
 ---
