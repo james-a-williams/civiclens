@@ -6,6 +6,7 @@ pg = st.navigation(
     [
         st.Page("views/find_members.py", title="Find Officials", icon="🔍", default=True),
         st.Page("views/member_profile.py", title="Official Profile", icon="👤"),
+        st.Page("views/bills.py", title="Bill Detail", icon="📄"),
     ]
 )
 pg.run()
