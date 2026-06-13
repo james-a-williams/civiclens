@@ -2,9 +2,11 @@ import pytest
 import requests
 import responses as rsps
 
-from src.connectors.congress_api import CongressAPIConnector
+from src.connectors.congress_api import BILL_TYPES, CongressAPIConnector
 
 BASE = "https://api.congress.gov/v3"
+CLERK = "https://clerk.house.gov/evs"
+SENATE = "https://www.senate.gov/legislative/LIS/roll_call_votes"
 
 
 @pytest.fixture
@@ -72,18 +74,29 @@ def test_get_member_not_found_raises(connector):
 
 @rsps.activate
 def test_fetch_all_returns_expected_keys(connector):
-    for path in ["/member", "/committee/house", "/committee/senate"]:
-        rsps.add(
-            rsps.GET,
-            f"{BASE}{path}",
-            json={
-                list({"members": [], "committees": []}.keys())[0 if "member" in path else 1]: [],
-                "pagination": {"next": None},
-            },
-        )
-    rsps.add(rsps.GET, f"{BASE}/member", json={"members": [], "pagination": {"next": None}})
+    empty_members = {"members": [], "pagination": {"next": None}}
     empty_committees = {"committees": [], "pagination": {"next": None}}
+    empty_bills = {"bills": [], "pagination": {"next": None}}
+
+    rsps.add(rsps.GET, f"{BASE}/member", json=empty_members)
     rsps.add(rsps.GET, f"{BASE}/committee/house", json=empty_committees)
     rsps.add(rsps.GET, f"{BASE}/committee/senate", json=empty_committees)
+
+    # Bill endpoints — one per bill type
+    for bill_type in BILL_TYPES:
+        rsps.add(rsps.GET, f"{BASE}/bill/119/{bill_type}", json=empty_bills)
+
+    # House Clerk and Senate LIS — 404 so the loops exit immediately
+    rsps.add(rsps.GET, f"{CLERK}/2025/roll001.xml", status=404)
+    rsps.add(rsps.GET, f"{SENATE}/vote1191/vote_119_1_00001.xml", status=404)
+
     result = connector.fetch_all(congress=119)
-    assert set(result.keys()) == {"members", "house_committees", "senate_committees"}
+    assert set(result.keys()) == {
+        "members",
+        "house_committees",
+        "senate_committees",
+        "congress_bills",
+        "congress_member_sponsorships",
+        "congress_house_votes",
+        "congress_senate_votes",
+    }

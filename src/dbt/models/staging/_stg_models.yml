@@ -279,6 +279,157 @@ models:
       - name: load_at
         description: UTC timestamp when the parent bill record was loaded into the raw layer.
 
+  - name: stg_congress__bills
+    description: >
+      One row per federal bill for the current Congress. Sourced from the Congress.gov
+      /bill/{congress}/{type} endpoint across all bill types (HR, S, HJRES, SJRES, HRES,
+      SRES). Sponsor and vote detail are in their own staging models.
+    columns:
+      - name: congress
+        description: Congress number (e.g. 119 for the 119th Congress).
+        tests:
+          - not_null
+      - name: bill_type
+        description: Bill type code (e.g. HR, S, HJRES, SJRES, HRES, SRES).
+        tests:
+          - not_null
+      - name: bill_number
+        description: Bill number within the type (e.g. "1", "2045"). String to preserve leading zeros.
+        tests:
+          - not_null
+      - name: title
+        description: Official short title or display title of the bill as returned by Congress.gov.
+      - name: origin_chamber
+        description: Chamber where the bill was introduced (House or Senate).
+      - name: api_url
+        description: Congress.gov API URL for the bill detail endpoint.
+      - name: latest_action_date
+        description: Date of the most recent action taken on the bill.
+      - name: latest_action_text
+        description: Text description of the most recent action taken on the bill.
+      - name: update_date
+        description: Date the Congress.gov record was last updated.
+      - name: load_at
+        description: UTC timestamp when this record was loaded into the raw layer.
+
+  - name: stg_congress__bill_sponsorships
+    description: >
+      One row per member × bill for all sponsored and co-sponsored federal legislation.
+      Sourced from the Congress.gov /member/{bioguideId}/sponsored-legislation endpoint
+      for every member of the current Congress. The _bioguide_id field added by the
+      connector tags the sponsoring member; sponsorship type (primary vs. cosponsor)
+      is not distinguished in this endpoint and should be inferred from the bill's
+      primary sponsor where needed.
+    columns:
+      - name: bioguide_id
+        description: Bioguide ID of the sponsoring or co-sponsoring member. Foreign key to stg_congress__members.
+        tests:
+          - not_null
+      - name: congress
+        description: Congress number in which the bill was introduced.
+        tests:
+          - not_null
+      - name: bill_type
+        description: Bill type code (e.g. HR, S).
+      - name: bill_number
+        description: Bill number within the type.
+      - name: title
+        description: Official title of the bill.
+      - name: introduced_date
+        description: Date the bill was introduced in Congress.
+      - name: policy_area
+        description: Congressional Research Service policy area classification (e.g. "Taxation", "Health").
+      - name: latest_action_date
+        description: Date of the most recent action taken on the bill.
+      - name: latest_action_text
+        description: Text description of the most recent action.
+      - name: load_at
+        description: UTC timestamp when this record was loaded into the raw layer.
+
+  - name: stg_congress__house_votes
+    description: >
+      One row per House member × roll-call vote for the current year. Flattened from
+      the member_votes VARIANT in the raw congress_house_votes table using lateral
+      flatten. Sourced from House Clerk XML (clerk.house.gov/evs/{year}/roll{N:03d}.xml).
+      vote_option values are normalized to yes / no / abstain / present.
+    columns:
+      - name: congress
+        description: Congress number.
+        tests:
+          - not_null
+      - name: session
+        description: Congressional session number (1 or 2).
+      - name: chamber
+        description: Always "house" for this table.
+      - name: roll_number
+        description: Sequential roll-call number within the year.
+        tests:
+          - not_null
+      - name: year
+        description: Calendar year of the roll call.
+      - name: legis_num
+        description: Bill or resolution identifier referenced by the roll call (e.g. "HR 1234"). May be null for procedural votes.
+      - name: vote_question
+        description: Description of what was being voted on (e.g. "On Passage", "On Motion to Recommit").
+      - name: vote_result
+        description: Outcome of the roll call (e.g. "Passed", "Failed", "Agreed to").
+      - name: vote_date
+        description: Date the roll call was held.
+      - name: bioguide_id
+        description: Bioguide ID of the voting member. Foreign key to stg_congress__members.
+      - name: voter_name
+        description: Full name of the voting member as recorded in House Clerk XML.
+      - name: party
+        description: Single-letter party code of the member (D, R, I).
+      - name: state
+        description: Two-letter postal abbreviation of the member's state.
+      - name: vote_option
+        description: How the member voted, normalized to yes / no / abstain / present.
+      - name: load_at
+        description: UTC timestamp when the parent roll-call record was loaded into the raw layer.
+
+  - name: stg_congress__senate_votes
+    description: >
+      One row per senator × roll-call vote for the current Congress session. Flattened
+      from the member_votes VARIANT in the raw congress_senate_votes table using lateral
+      flatten. Sourced from Senate LIS XML (senate.gov/legislative/LIS/roll_call_votes/...).
+      vote_option values are normalized to yes / no / abstain / present.
+      Note: Senate votes use lis_member_id (not bioguide_id) as the person identifier;
+      join to stg_congress__members requires a crosswalk via name + state.
+    columns:
+      - name: congress
+        description: Congress number.
+        tests:
+          - not_null
+      - name: session
+        description: Congressional session number (1 or 2).
+      - name: chamber
+        description: Always "senate" for this table.
+      - name: vote_number
+        description: Sequential vote number within the Congress session.
+        tests:
+          - not_null
+      - name: legis_num
+        description: Bill or nomination identifier referenced by the vote (e.g. "S 123", "PN 1"). May be null for procedural votes.
+      - name: vote_question
+        description: Short description of the vote question (e.g. "On the Nomination", "On Passage").
+      - name: vote_result
+        description: Outcome of the vote (e.g. "Confirmed", "Passed", "Rejected").
+      - name: vote_date
+        description: Date and time the vote was held.
+      - name: lis_member_id
+        description: Senate LIS member ID for the voting senator (e.g. S001234). Not the same as bioguide_id.
+      - name: voter_name
+        description: Full name of the voting senator as recorded in Senate LIS XML (e.g. "Schumer (NY)").
+      - name: party
+        description: Single-letter party code of the senator (D, R, I).
+      - name: state
+        description: Two-letter postal abbreviation of the senator's state.
+      - name: vote_option
+        description: How the senator voted, normalized to yes / no / abstain / present.
+      - name: load_at
+        description: UTC timestamp when the parent vote record was loaded into the raw layer.
+
   - name: stg_census__congressional_districts
     description: >
       One row per U.S. congressional district. Sourced from the Census Bureau ACS
