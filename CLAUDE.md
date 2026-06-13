@@ -2,9 +2,18 @@
 
 ## Project Overview
 
-CivicLens is a full-stack data pipeline portfolio project built to demonstrate end-to-end data engineering skills — from raw ingestion to a live dashboard — targeting fullstack data engineering roles at startups.
+CivicLens is a federal accountability dashboard and full-stack data pipeline portfolio project. It tracks elected U.S. federal officials — House members and Senators — since the 111th Congress (2009–2010), surfacing who they are, how they've voted, who funds them, and where potential conflicts of interest exist.
 
-The project pulls civic data (legislation, voting records, public filings, etc.), transforms it into analytics-ready models, exposes it via an API, and surfaces insights in an interactive frontend. Claude Code agents are embedded throughout the pipeline for research, planning, and monitoring tasks.
+**Scope:** U.S. federal elected officials only. State and local officials are out of scope.
+
+**Data dimensions per official:**
+- Identity and tenure (bioguide ID, party, state, chamber, congresses served)
+- Committee assignments (which industries they oversee)
+- Bills sponsored and voting record on legislation
+- Campaign finance — total raised, PAC vs. individual breakdown, top donor organizations
+- Conflict of interest score — computed from PAC dependency and committee jurisdiction overlap, with a plain-language evidence description
+
+**Data sources:** Congress.gov API (members, bills, votes, committees) · FEC API (candidate finance totals, committees) · House Clerk XML + Senate LIS XML (roll-call vote records)
 
 **Status:** Active development. This is a public portfolio repo — code quality, architecture decisions, and agentic workflows are all part of what's on display.
 
