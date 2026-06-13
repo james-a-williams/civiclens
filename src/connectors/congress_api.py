@@ -97,6 +97,48 @@ class CongressAPIConnector(BaseConnector):
     def get_committees(self, chamber: str = "house") -> list[dict]:
         return list(self._paginate_congress(f"/committee/{chamber}", {}, "committees"))
 
+    def get_committee_members(
+        self, chamber: str, committee_code: str, congress: int = CURRENT_CONGRESS
+    ) -> list[dict]:
+        """Return one flat record per member of a specific committee."""
+        data = self._get(f"/committee/{congress}/{chamber}/{committee_code}")
+        committee = data.get("committee", {})
+        committee_name = committee.get("name", "")
+        return [
+            {
+                "bioguide_id": m.get("bioguideId"),
+                "congress": congress,
+                "chamber": chamber,
+                "committee_code": committee_code,
+                "committee_name": committee_name,
+                "subcommittee_code": None,
+                "subcommittee_name": None,
+                "rank": m.get("rank"),
+                "title": m.get("title"),
+            }
+            for m in committee.get("currentMembers", [])
+            if m.get("bioguideId")
+        ]
+
+    def get_committee_memberships(self, congress: int = CURRENT_CONGRESS) -> list[dict]:
+        """Fetch member assignments for every full committee in both chambers."""
+        all_memberships: list[dict] = []
+        for chamber in ("house", "senate"):
+            committees = self.get_committees(chamber=chamber)
+            for committee in committees:
+                code = committee.get("systemCode")
+                if not code:
+                    continue
+                try:
+                    members = self.get_committee_members(chamber, code, congress)
+                    all_memberships.extend(members)
+                except Exception as exc:
+                    logger.warning(
+                        "Congress API: committee members %s/%s failed: %s",
+                        chamber, code, exc,
+                    )
+        return all_memberships
+
     def get_all_bills(self, congress: int = CURRENT_CONGRESS) -> list[dict]:
         """Fetch bills across all bill types for a given Congress."""
         all_bills: list[dict] = []
@@ -258,9 +300,12 @@ class CongressAPIConnector(BaseConnector):
         logger.info("Congress API: fetching members congress=%d", congress)
         members = self.get_members(congress=congress)
 
-        logger.info("Congress API: fetching committees")
+        logger.info(
+            "Congress API: fetching committees and member assignments congress=%d", congress
+        )
         house_committees = self.get_committees(chamber="house")
         senate_committees = self.get_committees(chamber="senate")
+        committee_memberships = self.get_committee_memberships(congress=congress)
 
         logger.info("Congress API: fetching bills congress=%d", congress)
         bills = self.get_all_bills(congress)
@@ -281,6 +326,7 @@ class CongressAPIConnector(BaseConnector):
             "members": members,
             "house_committees": house_committees,
             "senate_committees": senate_committees,
+            "congress_committee_memberships": committee_memberships,
             "congress_bills": bills,
             "congress_member_sponsorships": member_sponsorships,
             "congress_house_votes": house_votes,
