@@ -11,7 +11,16 @@ CURRENT_CONGRESS = 119  # 119th Congress: Jan 2025 – Jan 2027
 CURRENT_SESSION = 1
 CURRENT_YEAR = 2025
 
+# Historical range: 111th (Jan 2009) through current
+CONGRESS_RANGE = list(range(111, CURRENT_CONGRESS + 1))
+
 BILL_TYPES = ["hr", "s", "hjres", "sjres", "hres", "sres"]
+
+
+def congress_years(congress: int) -> tuple[int, int]:
+    """Return the two calendar years covered by a Congress (e.g. 119 → (2025, 2026))."""
+    start = 2009 + 2 * (congress - 111)
+    return start, start + 1
 
 _VOTE_OPTION_MAP = {
     "yea": "yes",
@@ -297,6 +306,8 @@ class CongressAPIConnector(BaseConnector):
         return results
 
     def fetch_all(self, congress: int = CURRENT_CONGRESS) -> dict[str, list[dict]]:  # type: ignore[override]
+        year1, year2 = congress_years(congress)
+
         logger.info("Congress API: fetching members congress=%d", congress)
         members = self.get_members(congress=congress)
 
@@ -313,14 +324,16 @@ class CongressAPIConnector(BaseConnector):
         logger.info("Congress API: fetching sponsored legislation for %d members", len(members))
         member_sponsorships = self.get_all_member_sponsorships(members)
 
-        logger.info("Congress API: fetching House roll-call votes year=%d", CURRENT_YEAR)
-        house_votes = self.get_house_votes(year=CURRENT_YEAR)
+        # House votes are indexed by year; each congress spans two calendar years.
+        logger.info("Congress API: fetching House votes years=%d,%d", year1, year2)
+        house_votes = self.get_house_votes(year=year1) + self.get_house_votes(year=year2)
 
-        logger.info(
-            "Congress API: fetching Senate roll-call votes congress=%d session=%d",
-            congress, CURRENT_SESSION,
+        # Senate votes are indexed by congress + session (two sessions per congress).
+        logger.info("Congress API: fetching Senate votes congress=%d sessions=1,2", congress)
+        senate_votes = (
+            self.get_senate_votes(congress=congress, session=1)
+            + self.get_senate_votes(congress=congress, session=2)
         )
-        senate_votes = self.get_senate_votes(congress=congress, session=CURRENT_SESSION)
 
         return {
             "members": members,

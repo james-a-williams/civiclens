@@ -24,6 +24,7 @@ dependencies = [
 
 [project.scripts]
 civiclens-load = "connectors.snowflake_loader:load_all"
+civiclens-backfill = "orchestration.backfill:main"
 civiclens-api = "api.main:run"
 
 [project.optional-dependencies]

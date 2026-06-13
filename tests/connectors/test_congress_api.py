@@ -2,7 +2,12 @@ import pytest
 import requests
 import responses as rsps
 
-from src.connectors.congress_api import BILL_TYPES, CongressAPIConnector
+from src.connectors.congress_api import (
+    BILL_TYPES,
+    CONGRESS_RANGE,
+    CongressAPIConnector,
+    congress_years,
+)
 
 BASE = "https://api.congress.gov/v3"
 CLERK = "https://clerk.house.gov/evs"
@@ -12,6 +17,17 @@ SENATE = "https://www.senate.gov/legislative/LIS/roll_call_votes"
 @pytest.fixture
 def connector():
     return CongressAPIConnector(api_key="test-key")
+
+
+def test_congress_years_maps_correctly():
+    assert congress_years(111) == (2009, 2010)
+    assert congress_years(119) == (2025, 2026)
+    assert congress_years(118) == (2023, 2024)
+
+
+def test_congress_range_starts_at_111_and_includes_current():
+    assert CONGRESS_RANGE[0] == 111
+    assert 119 in CONGRESS_RANGE
 
 
 @rsps.activate
@@ -206,9 +222,12 @@ def test_fetch_all_returns_expected_keys(connector):
     for bill_type in BILL_TYPES:
         rsps.add(rsps.GET, f"{BASE}/bill/119/{bill_type}", json=empty_bills)
 
-    # House Clerk and Senate LIS — 404 so the loops exit immediately
+    # House Clerk — 404 for both years of the 119th Congress (2025, 2026)
     rsps.add(rsps.GET, f"{CLERK}/2025/roll001.xml", status=404)
+    rsps.add(rsps.GET, f"{CLERK}/2026/roll001.xml", status=404)
+    # Senate LIS — 404 for both sessions
     rsps.add(rsps.GET, f"{SENATE}/vote1191/vote_119_1_00001.xml", status=404)
+    rsps.add(rsps.GET, f"{SENATE}/vote1192/vote_119_2_00001.xml", status=404)
 
     result = connector.fetch_all(congress=119)
     assert set(result.keys()) == {

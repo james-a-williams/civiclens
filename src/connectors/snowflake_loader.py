@@ -17,7 +17,7 @@ from .snowflake_client import get_raw_connection
 logger = logging.getLogger(__name__)
 
 
-def load_table(conn, records: list[dict], table_name: str) -> None:
+def load_table(conn, records: list[dict], table_name: str, overwrite: bool = False) -> None:
     if not records:
         logger.warning("load_table: no records for %s, skipping", table_name)
         return
@@ -26,14 +26,21 @@ def load_table(conn, records: list[dict], table_name: str) -> None:
     df.columns = df.columns.str.upper().str.replace(" ", "_")
     df = df.loc[:, df.columns.notna()]  # drop phantom columns from trailing CSV commas
     write_pandas(
-        conn, df, table_name.upper(), auto_create_table=True, overwrite=True, use_logical_type=True
+        conn, df, table_name.upper(),
+        auto_create_table=True, overwrite=overwrite, use_logical_type=True,
     )
-    logger.info("load_table: wrote %d rows → %s", len(df), table_name)
+    logger.info(
+        "load_table: %s %d rows → %s",
+        "overwrote" if overwrite else "appended",
+        len(df), table_name,
+    )
 
 
-def load_connector_data(conn, tables: dict[str, list[dict]]) -> None:
+def load_connector_data(
+    conn, tables: dict[str, list[dict]], overwrite: bool = False
+) -> None:
     for table_name, records in tables.items():
-        load_table(conn, records, table_name)
+        load_table(conn, records, table_name, overwrite=overwrite)
 
 
 CONNECTORS = [
@@ -53,6 +60,11 @@ def load_all() -> None:
         metavar="NAME",
         help="Run only this source (e.g. census, fec). Omit to run all.",
     )
+    parser.add_argument(
+        "--full-refresh",
+        action="store_true",
+        help="Truncate each table before writing (use for clean re-sync of current data).",
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -67,7 +79,7 @@ def load_all() -> None:
             tables = connector.fetch_all()
             counts = {t: len(r) for t, r in tables.items()}
             logger.info("load_all: %s tables=%s", name, counts)
-            load_connector_data(conn, tables)
+            load_connector_data(conn, tables, overwrite=args.full_refresh)
             logger.info("load_all: finished %s", name)
     finally:
         conn.close()
