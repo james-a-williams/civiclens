@@ -90,6 +90,75 @@ models:
         tests:
           - not_null
 
+  - name: dim_bills
+    description: >
+      One row per bill, unified across state (OpenStates) and federal (Congress.gov).
+      bill_key is the stable FK for fct_bill_sponsorships and fct_votes.
+      abstract and url are null for Congress bills until per-bill detail is fetched.
+    columns:
+      - name: bill_key
+        tests:
+          - unique
+          - not_null
+      - name: source_system
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['openstates', 'congress']
+      - name: level
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['state', 'federal']
+
+  - name: fct_bill_sponsorships
+    description: >
+      One row per person × bill sponsorship, unified across OpenStates (state)
+      and Congress.gov (federal). is_primary is null for Congress rows — the
+      sponsored-legislation endpoint does not distinguish primary vs. cosponsor.
+      Only person-type sponsors are included; organization sponsors are excluded.
+    columns:
+      - name: sponsorship_key
+        tests:
+          - unique
+          - not_null
+      - name: bill_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_bills')
+                field: bill_key
+              config:
+                severity: warn
+
+  - name: fct_votes
+    description: >
+      One row per person × roll call, unified across OpenStates (state), House
+      Clerk XML (federal House), and Senate LIS XML (federal Senate).
+      person_key is null for Senate rows — lis_member_id has no crosswalk to
+      bioguide_id yet (Phase 3 gap). bill_key is null for procedural votes not
+      tied to a specific bill. voter_name is kept for display and future resolution.
+    columns:
+      - name: vote_key
+        tests:
+          - unique
+          - not_null
+      - name: vote_option
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['yes', 'no', 'abstain', 'present']
+              config:
+                severity: warn
+      - name: bill_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_bills')
+                field: bill_key
+              config:
+                severity: warn
+
   - name: fct_candidate_finance
     description: >
       One row per candidacy per cycle. Field coverage varies by source system
