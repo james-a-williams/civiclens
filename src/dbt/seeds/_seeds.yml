@@ -1,0 +1,18 @@
+version: 2
+
+seeds:
+  - name: state_abbreviations
+    description: >
+      State name ↔ postal abbreviation ↔ FIPS code mapping, including DC and
+      territories with congressional delegates. Needed because Congress.gov
+      returns full state names while FEC and OpenStates use abbreviations.
+    config:
+      column_types:
+        state_fips: varchar(2)
+    columns:
+      - name: state_name
+        tests: [unique, not_null]
+      - name: state_abbr
+        tests: [unique, not_null]
+      - name: state_fips
+        tests: [unique, not_null]

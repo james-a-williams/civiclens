@@ -22,6 +22,8 @@ models:
         relation: true
         columns: true
     intermediate:
-      +materialized: ephemeral
+      +materialized: view
+      +schema: INTERMEDIATE
     marts:
       +materialized: table
+      +schema: MARTS

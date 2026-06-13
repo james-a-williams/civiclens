@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: int_persons__id_crosswalk
+    description: >
+      One row per resolved person across source ID systems (bioguide, FEC,
+      OpenStates, NY BOE filer, NYC CFB recipient). Match method and confidence
+      are kept for auditability. Levels are resolved independently; cross-level
+      identity is out of scope until Phase 5.
+    columns:
+      - name: person_key
+        description: Surrogate key — md5 of the highest-priority source ID present.
+        tests:
+          - unique
+          - not_null
+      - name: bioguide_id
+        tests:
+          - unique:
+              config:
+                where: bioguide_id is not null
+      - name: fec_candidate_id
+        tests:
+          - unique:
+              config:
+                where: fec_candidate_id is not null
+      - name: nyc_cfb_recipient_id
+        tests:
+          - unique:
+              config:
+                where: nyc_cfb_recipient_id is not null
+
+  - name: int_legislators__ny_boe_activity
+    description: >
+      NY BOE public campaign finance activity joined to OpenStates legislators
+      via fuzzy last-name + district matching.

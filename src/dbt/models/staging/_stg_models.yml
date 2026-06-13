@@ -73,6 +73,30 @@ models:
           How often the committee files reports with the FEC
           (e.g. M = monthly, Q = quarterly, T = terminated).
 
+  - name: stg_fec__candidate_totals
+    description: >
+      One row per FEC candidate per cycle with financial totals from the
+      /candidates/totals endpoint. Powers the federal slice of
+      fct_candidate_finance without needing Schedule A transaction volume.
+    columns:
+      - name: candidate_id
+        description: FEC-assigned unique identifier for the candidate.
+        tests:
+          - unique
+          - not_null
+      - name: cycle
+        description: Two-year election cycle the totals cover (e.g. 2024).
+        tests:
+          - not_null
+      - name: total_receipts
+        description: Total receipts (money raised) for the cycle in USD.
+      - name: total_disbursements
+        description: Total disbursements (money spent) for the cycle in USD.
+      - name: cash_on_hand
+        description: Cash on hand at the end of the most recent reporting period.
+      - name: load_at
+        description: UTC timestamp when this record was loaded into the raw layer.
+
   - name: stg_congress__members
     description: >
       One row per current or recent federal legislator. Sourced from the Congress.gov

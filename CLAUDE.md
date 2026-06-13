@@ -49,6 +49,8 @@ civiclens/
 │   ├── connectors/      # Python data source connectors (one file per source)
 │   ├── transforms/      # Standalone Python transformation logic (pre-dbt or utility)
 │   ├── agents/          # Claude Code agentic workflows (research, planning, monitor)
+│   ├── api/             # FastAPI layer serving mart data (run: civiclens-api)
+│   ├── app/             # Streamlit frontend (run: streamlit run src/app/app.py)
 │   ├── dbt/             # dbt Fusion project
 │   │   ├── models/
 │   │   │   ├── staging/

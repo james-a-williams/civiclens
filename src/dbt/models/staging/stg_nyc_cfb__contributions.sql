@@ -7,7 +7,7 @@ select
     filing                      as filing_period,
     schedule,
     refno                       as transaction_ref,
-    date::date                  as contribution_date,
+    try_to_date(date)           as contribution_date,  -- raw has '' for unknown dates
     name                        as contributor_name,
     c_code                      as contributor_type,
     city,
