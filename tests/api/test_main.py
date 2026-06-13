@@ -178,7 +178,9 @@ class _FakeClaude:
         def create(self, **kwargs):
             class _Resp:
                 content = [
-                    type("C", (), {"text": '{"plain_summary": "Generated summary.", "eli5": "Simple."}'})()
+                    type("C", (), {
+                        "text": '{"plain_summary": "Generated summary.", "eli5": "Simple."}'
+                    })()
                 ]
             return _Resp()
 
@@ -242,7 +244,9 @@ def test_summarize_404(monkeypatch):
 
 
 def test_record_returns_sponsored_and_votes(monkeypatch):
-    sponsored = [{"bill_key": "bk1", "identifier": "HB 1234", "title": "An Act", "is_primary": True}]
+    sponsored = [
+        {"bill_key": "bk1", "identifier": "HB 1234", "title": "An Act", "is_primary": True}
+    ]
     votes = [{"bill_key": "bk1", "vote_option": "yes", "vote_date": "2024-01-10"}]
     fake = _fake_query({
         "from fct_bill_sponsorships": sponsored,
