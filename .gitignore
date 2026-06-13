@@ -14,6 +14,7 @@ logs/
 # Snowflake / secrets
 *.json
 *.csv
+!src/dbt/seeds/*.csv
 profiles.yml
 
 # Raw data landing (tracked by .gitkeep, actual files ignored)

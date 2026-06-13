@@ -17,11 +17,13 @@ models:
       - name: level
         tests:
           - accepted_values:
-              values: ['federal', 'state', 'local']
+              arguments:
+                values: ['federal', 'state', 'local']
       - name: source_system
         tests:
           - accepted_values:
-              values: ['fec', 'ny_boe', 'nyc_cfb']
+              arguments:
+                values: ['fec', 'ny_boe', 'nyc_cfb']
 
   - name: dim_legislators
     description: >
@@ -38,7 +40,8 @@ models:
       - name: chamber
         tests:
           - accepted_values:
-              values: ['house', 'senate']
+              arguments:
+                values: ['house', 'senate']
 
   - name: dim_districts
     description: >
@@ -52,7 +55,8 @@ models:
       - name: geo_level
         tests:
           - accepted_values:
-              values: ['congressional_district', 'state']
+              arguments:
+                values: ['congressional_district', 'state']
 
   - name: dim_committees
     description: One row per FEC committee with decoded type/designation labels.
@@ -76,8 +80,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_candidates')
-              field: candidacy_key
+              arguments:
+                to: ref('dim_candidates')
+                field: candidacy_key
       - name: donor_key
         tests:
           - not_null
@@ -97,11 +102,13 @@ models:
           # warn only: FEC totals for a cycle include candidates whose
           # election year is outside the candidates-search snapshot
           - relationships:
-              to: ref('dim_candidates')
-              field: candidacy_key
+              arguments:
+                to: ref('dim_candidates')
+                field: candidacy_key
               config:
                 severity: warn
       - name: coverage
         tests:
           - accepted_values:
-              values: ['fec', 'ny_boe', 'nyc_cfb']
+              arguments:
+                values: ['fec', 'ny_boe', 'nyc_cfb']
