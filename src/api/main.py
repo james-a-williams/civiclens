@@ -1,7 +1,13 @@
-"""CivicLens API — serves mart data to the Streamlit frontend.
+"""CivicLens API — federal official accountability dashboard.
 
-Phase 1: candidate search, profile, finance summary.
-Phase 2: bill detail, bill summarization (Claude Haiku), candidate record.
+Endpoints:
+  GET  /members                        search elected federal officials
+  GET  /members/{member_key}           profile: identity, committees, terms
+  GET  /members/{member_key}/finance   FEC fundraising by cycle, PAC breakdown
+  GET  /members/{member_key}/record    sponsored bills + votes
+  GET  /members/{member_key}/conflict  COI score with evidence description
+  GET  /bills/{bill_key}               bill detail with optional AI summary
+  POST /bills/{bill_key}/summarize     generate Claude Haiku AI summary
 """
 
 import json
@@ -15,7 +21,7 @@ from . import db
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="CivicLens API", version="0.1.0")
+app = FastAPI(title="CivicLens API", version="0.2.0")
 
 SUMMARIZE_MODEL = "claude-haiku-4-5-20251001"
 
@@ -28,82 +34,22 @@ def _get_claude() -> anthropic.Anthropic:
         _claude = anthropic.Anthropic()
     return _claude
 
+
+# ── Member search ──────────────────────────────────────────────────────────────
+
 SEARCH_SQL = """
 select
-    candidacy_key, display_name, party, level, office, state, district,
-    cycle, is_incumbent, source_system,
+    member_key, bioguide_id, name, display_name, party, state,
+    chamber, district, title, latest_congress,
     count(*) over () as total_count
-from dim_candidates
-where (%(q)s is null or display_name ilike '%%' || %(q)s || '%%')
-  and (%(level)s is null or level = %(level)s)
+from dim_members
+where (%(q)s is null or name ilike '%%' || %(q)s || '%%')
+  and (%(chamber)s is null or chamber = %(chamber)s)
   and (%(state)s is null or state = %(state)s)
   and (%(party)s is null or party ilike '%%' || %(party)s || '%%')
-  and (%(district)s is null or district = %(district)s)
-  and (%(cycle)s is null or cycle = %(cycle)s)
-  and (%(office)s is null or office ilike '%%' || %(office)s || '%%')
-order by display_name
+  and (%(congress)s is null or latest_congress = %(congress)s)
+order by name
 limit %(limit)s offset %(offset)s
-"""
-
-PROFILE_SQL = """
-select candidacy_key, person_key, display_name, party, level, office, state,
-       district, cycle, incumbent_challenge, is_incumbent, source_system, source_id
-from dim_candidates
-where candidacy_key = %(key)s
-"""
-
-OTHER_CANDIDACIES_SQL = """
-select candidacy_key, office, state, district, cycle, source_system
-from dim_candidates
-where person_key = %(person_key)s and candidacy_key != %(key)s
-order by cycle desc
-"""
-
-DISTRICT_SQL = """
-select district_key, geo_level, name, total_population, median_household_income,
-       pct_white, pct_black, pct_hispanic, pct_bachelors, pct_insured
-from dim_districts
-where (%(geo_level)s = 'congressional_district'
-       and geo_level = 'congressional_district'
-       and state = %(state)s and district_number = %(district)s)
-   or (%(geo_level)s = 'state' and geo_level = 'state' and state = %(state)s)
-"""
-
-FINANCE_SQL = """
-select coverage, total_raised, total_spent, cash_on_hand, public_funds_received,
-       matchable_amount_total, contribution_count, unique_donor_count,
-       avg_contribution, pct_small_dollar
-from fct_candidate_finance
-where candidacy_key = %(key)s
-"""
-
-TOP_DONORS_SQL = """
-select max(contributor_name) as contributor_name, max(employer_name) as employer_name,
-       max(city) as city, max(state) as state,
-       sum(amount) as total_amount, count(*) as contribution_count
-from fct_contributions
-where candidacy_key = %(key)s and contributor_name is not null
-group by donor_key
-order by total_amount desc
-limit %(limit)s
-"""
-
-TOP_EMPLOYERS_SQL = """
-select employer_name, sum(amount) as total_amount, count(*) as contribution_count
-from fct_contributions
-where candidacy_key = %(key)s and employer_name is not null and employer_name != ''
-group by employer_name
-order by total_amount desc
-limit %(limit)s
-"""
-
-GEO_BREAKDOWN_SQL = """
-select city, state, sum(amount) as total_amount, count(*) as contribution_count
-from fct_contributions
-where candidacy_key = %(key)s and city is not null
-group by city, state
-order by total_amount desc
-limit %(limit)s
 """
 
 
@@ -112,28 +58,24 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/candidates")
-def search_candidates(
+@app.get("/members")
+def search_members(
     q: str | None = None,
-    level: str | None = Query(None, pattern="^(federal|state|local)$"),
+    chamber: str | None = Query(None, pattern="^(house|senate)$"),
     state: str | None = None,
     party: str | None = None,
-    district: int | None = None,
-    cycle: int | None = None,
-    office: str | None = None,
-    limit: int = Query(20, ge=1, le=100),
+    congress: int | None = None,
+    limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ) -> dict:
     rows = db.query(
         SEARCH_SQL,
         {
             "q": q,
-            "level": level,
+            "chamber": chamber,
             "state": state.upper() if state else None,
             "party": party,
-            "district": district,
-            "cycle": cycle,
-            "office": office,
+            "congress": congress,
             "limit": limit,
             "offset": offset,
         },
@@ -144,58 +86,131 @@ def search_candidates(
     return {"results": rows, "total": total, "limit": limit, "offset": offset}
 
 
-@app.get("/candidates/{candidacy_key}")
-def candidate_profile(candidacy_key: str) -> dict:
-    rows = db.query(PROFILE_SQL, {"key": candidacy_key})
+# ── Member profile ─────────────────────────────────────────────────────────────
+
+PROFILE_SQL = """
+select
+    member_key, bioguide_id, fec_candidate_id, name, display_name,
+    party, state, chamber, district, title, latest_congress, updated_at
+from dim_members
+where member_key = %(key)s
+"""
+
+COMMITTEES_SQL = """
+select committee_name, role_title, rank, industry_category, congress
+from fct_committee_memberships
+where member_key = %(key)s
+order by congress desc, rank asc nulls last
+"""
+
+
+@app.get("/members/{member_key}")
+def member_profile(member_key: str) -> dict:
+    rows = db.query(PROFILE_SQL, {"key": member_key})
     if not rows:
-        raise HTTPException(status_code=404, detail="candidacy not found")
+        raise HTTPException(status_code=404, detail="member not found")
     profile = rows[0]
-
-    other = db.query(
-        OTHER_CANDIDACIES_SQL,
-        {"person_key": profile["person_key"], "key": candidacy_key},
-    )
-
-    # District context: House races get their congressional district,
-    # everything else gets state-level demographics.
-    district = None
-    if profile["state"]:
-        is_house = profile["level"] == "federal" and profile["district"] is not None
-        geo = db.query(
-            DISTRICT_SQL,
-            {
-                "geo_level": "congressional_district" if is_house else "state",
-                "state": profile["state"],
-                "district": profile["district"],
-            },
-        )
-        district = geo[0] if geo else None
-
-    return {**profile, "other_candidacies": other, "district_context": district}
+    committees = db.query(COMMITTEES_SQL, {"key": member_key})
+    return {**profile, "committees": committees}
 
 
-@app.get("/candidates/{candidacy_key}/finance")
-def candidate_finance(candidacy_key: str, top_n: int = Query(10, ge=1, le=50)) -> dict:
-    rows = db.query(FINANCE_SQL, {"key": candidacy_key})
+# ── Finance ────────────────────────────────────────────────────────────────────
+
+FINANCE_SQL = """
+select
+    cycle, total_receipts, total_disbursements, cash_on_hand,
+    individual_itemized_contributions, individual_unitemized_contributions,
+    pac_contributions, party_contributions, candidate_self_funding,
+    pac_pct_of_total, individual_pct_of_total
+from fct_member_finance
+where member_key = %(key)s
+order by cycle desc
+"""
+
+
+@app.get("/members/{member_key}/finance")
+def member_finance(member_key: str) -> dict:
+    rows = db.query(PROFILE_SQL, {"key": member_key})
     if not rows:
-        # Valid candidacy with no finance rows is a legitimate state
-        # (e.g. candidate who never filed); distinguish from a bad key.
-        exists = db.query(PROFILE_SQL, {"key": candidacy_key})
-        if not exists:
-            raise HTTPException(status_code=404, detail="candidacy not found")
-        return {"summary": None, "top_donors": [], "top_employers": [], "geo_breakdown": []}
+        raise HTTPException(status_code=404, detail="member not found")
+    cycles = db.query(FINANCE_SQL, {"key": member_key})
+    return {"member_key": member_key, "cycles": cycles}
 
-    summary = rows[0]
-    # Donor detail only exists where we have transaction-grain data.
-    has_transactions = summary["coverage"] == "nyc_cfb"
-    params = {"key": candidacy_key, "limit": top_n}
+
+# ── Legislative record ─────────────────────────────────────────────────────────
+
+SPONSORED_BILLS_SQL = """
+select
+    b.bill_key, b.identifier, b.title, b.abstract, b.url,
+    s.is_primary, s.introduced_date
+from fct_bill_sponsorships s
+join dim_bills b on b.bill_key = s.bill_key
+where s.person_key = %(key)s
+order by s.introduced_date desc nulls last
+limit %(limit)s
+"""
+
+VOTES_SQL = """
+select
+    b.bill_key, b.identifier, b.title,
+    v.vote_event_id, v.vote_date, v.vote_option, v.vote_result, v.motion_text,
+    sm.plain_summary, sm.eli5
+from fct_votes v
+join dim_bills b on b.bill_key = v.bill_key
+left join app.bill_summaries sm on sm.bill_key = b.bill_key
+where v.person_key = %(key)s
+order by v.vote_date desc nulls last
+limit %(limit)s
+"""
+
+
+@app.get("/members/{member_key}/record")
+def member_record(
+    member_key: str,
+    limit: int = Query(50, ge=1, le=200),
+) -> dict:
+    rows = db.query(PROFILE_SQL, {"key": member_key})
+    if not rows:
+        raise HTTPException(status_code=404, detail="member not found")
+    params = {"key": member_key, "limit": limit}
     return {
-        "summary": summary,
-        "top_donors": db.query(TOP_DONORS_SQL, params) if has_transactions else [],
-        "top_employers": db.query(TOP_EMPLOYERS_SQL, params) if has_transactions else [],
-        "geo_breakdown": db.query(GEO_BREAKDOWN_SQL, params) if has_transactions else [],
+        "member_key": member_key,
+        "sponsored": db.query(SPONSORED_BILLS_SQL, params),
+        "votes": db.query(VOTES_SQL, params),
     }
 
+
+# ── Conflict of interest ───────────────────────────────────────────────────────
+
+CONFLICT_SQL = """
+select
+    coi.cycle, coi.coi_score, coi.risk_level,
+    coi.total_receipts, coi.pac_contributions,
+    coi.individual_itemized_contributions, coi.individual_unitemized_contributions,
+    coi.party_contributions, coi.candidate_self_funding,
+    coi.committees_served, coi.regulated_industries,
+    coi.evidence_description
+from mart_conflict_of_interest coi
+where coi.member_key = %(key)s
+order by coi.cycle desc
+"""
+
+
+@app.get("/members/{member_key}/conflict")
+def member_conflict(member_key: str) -> dict:
+    rows = db.query(PROFILE_SQL, {"key": member_key})
+    if not rows:
+        raise HTTPException(status_code=404, detail="member not found")
+    cycles = db.query(CONFLICT_SQL, {"key": member_key})
+    latest = cycles[0] if cycles else None
+    return {
+        "member_key": member_key,
+        "latest": latest,
+        "history": cycles,
+    }
+
+
+# ── Bill detail + AI summarization ────────────────────────────────────────────
 
 BILL_SQL = """
 select
@@ -215,34 +230,6 @@ select %(bill_key)s, %(plain_summary)s, %(eli5)s, %(model_id)s
 where not exists (
     select 1 from app.bill_summaries where bill_key = %(bill_key)s
 )
-"""
-
-SPONSORED_BILLS_SQL = """
-select
-    b.bill_key, b.identifier, b.title, b.abstract, b.url,
-    s.is_primary, s.introduced_date
-from fct_bill_sponsorships s
-join dim_bills b on b.bill_key = s.bill_key
-where s.person_key = (
-    select person_key from dim_candidates where candidacy_key = %(candidacy_key)s
-)
-order by s.introduced_date desc nulls last
-limit %(limit)s
-"""
-
-VOTES_SQL = """
-select
-    b.bill_key, b.identifier, b.title,
-    v.vote_event_id, v.vote_date, v.vote_option, v.vote_result, v.motion_text,
-    sm.plain_summary, sm.eli5
-from fct_votes v
-join dim_bills b on b.bill_key = v.bill_key
-left join app.bill_summaries sm on sm.bill_key = b.bill_key
-where v.person_key = (
-    select person_key from dim_candidates where candidacy_key = %(candidacy_key)s
-)
-order by v.vote_date desc nulls last
-limit %(limit)s
 """
 
 
@@ -299,21 +286,6 @@ def summarize_bill(bill_key: str) -> dict:
         "plain_summary": result["plain_summary"],
         "eli5": result["eli5"],
     }
-
-
-@app.get("/candidates/{candidacy_key}/record")
-def candidate_record(
-    candidacy_key: str,
-    limit: int = Query(50, ge=1, le=200),
-) -> dict:
-    params = {"candidacy_key": candidacy_key, "limit": limit}
-    sponsored = db.query(SPONSORED_BILLS_SQL, params)
-    votes = db.query(VOTES_SQL, params)
-    if not sponsored and not votes:
-        exists = db.query(PROFILE_SQL, {"key": candidacy_key})
-        if not exists:
-            raise HTTPException(status_code=404, detail="candidacy not found")
-    return {"sponsored": sponsored, "votes": votes}
 
 
 def run() -> None:

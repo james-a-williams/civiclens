@@ -1,0 +1,32 @@
+committee_keyword,industry_category,chamber,notes
+Finance,Finance / Insurance / Real Estate,Senate,Senate Finance oversees tax and Social Security
+Banking,Finance / Insurance / Real Estate,Senate,Senate Banking oversees financial institutions
+Financial Services,Finance / Insurance / Real Estate,House,House Financial Services oversees banks/SEC
+Ways and Means,Finance / Insurance / Real Estate,House,Tax-writing committee
+Appropriations,Government / Defense,Both,Controls all discretionary spending
+Budget,Government / Defense,Both,Sets overall spending limits
+Armed Services,Defense,Both,Oversees DoD and military contractors
+Defense,Defense,Both,
+Intelligence,Defense,Both,Oversees CIA/NSA and defense intel
+Energy and Commerce,Energy / Utilities / Telecom / Pharma,House,Broad jurisdiction over energy health and tech
+Energy and Natural Resources,Energy / Utilities,Senate,Oil gas mining water
+Environment and Public Works,Energy / Utilities,Senate,Environmental regulation and infrastructure
+Commerce,Energy / Utilities / Telecom,Senate,Commerce Science and Transportation
+Agriculture,Agribusiness,Both,Crop subsidies food safety
+Judiciary,Legal / Tech,Both,Antitrust IP immigration
+Technology,Legal / Tech,Both,
+Health,Health / Pharma,Both,
+Health Education Labor,Health / Pharma,Senate,HELP Committee — pharma labor healthcare
+Labor,Health / Pharma / Labor,Both,Worker protections and unions
+Education,Education,Both,
+Veterans Affairs,Defense / Health,Both,VA healthcare and benefits
+Homeland Security,Defense,Both,CBP ICE cybersecurity
+Foreign Affairs,Foreign Policy,House,Diplomacy and foreign aid
+Foreign Relations,Foreign Policy,Senate,Treaties and ambassadors
+Oversight,Government / Defense,Both,Government accountability
+Rules,Government / Defense,House,Controls House floor procedure
+Transportation,Transportation / Infrastructure,Both,Roads rail aviation
+Infrastructure,Transportation / Infrastructure,Both,
+Small Business,Small Business,Both,SBA and small business programs
+Natural Resources,Energy / Utilities,House,Public lands mining water
+Science Space Technology,Tech / Defense,House,NASA NSF R&D

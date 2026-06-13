@@ -109,3 +109,11 @@ sources:
           senate.gov/legislative/LIS/roll_call_votes/... — no API key required.
           The staging model stg_congress__senate_votes flattens member_votes into
           one row per senator × vote.
+
+      - name: congress_committee_memberships
+        description: >
+          Committee assignments for each member of Congress per congress number.
+          One row per (bioguide_id, congress, committee_code). Subcommittee rows
+          included with a non-null subcommittee_code. Sourced from the Congress.gov
+          /committee/{congress}/{chamber}/{code} endpoint by CongressAPIConnector
+          — see get_committee_memberships() TODO in congress_api.py.

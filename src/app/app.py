@@ -4,8 +4,8 @@ st.set_page_config(page_title="CivicLens", page_icon="🏛️", layout="wide")
 
 pg = st.navigation(
     [
-        st.Page("views/find_candidates.py", title="Find Candidates", icon="🔍", default=True),
-        st.Page("views/profile.py", title="Candidate Profile", icon="👤"),
+        st.Page("views/find_members.py", title="Find Officials", icon="🔍", default=True),
+        st.Page("views/member_profile.py", title="Official Profile", icon="👤"),
     ]
 )
 pg.run()
