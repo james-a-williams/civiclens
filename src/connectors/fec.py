@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 CURRENT_CYCLE = 2024
 
+# Historical range: 2010 through current (even years = FEC election cycles)
+FEC_CYCLES = list(range(2010, CURRENT_CYCLE + 1, 2))
+
 
 class FECConnector(BaseConnector):
     """Federal Election Commission campaign finance data.

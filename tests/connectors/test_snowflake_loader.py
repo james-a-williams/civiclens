@@ -14,6 +14,20 @@ def test_load_table_adds_load_at(mock_write):
 
 
 @patch("src.connectors.snowflake_loader.write_pandas")
+def test_load_table_defaults_to_append(mock_write):
+    conn = MagicMock()
+    load_table(conn, RECORDS, "test_table")
+    assert mock_write.call_args[1]["overwrite"] is False
+
+
+@patch("src.connectors.snowflake_loader.write_pandas")
+def test_load_table_overwrite_flag(mock_write):
+    conn = MagicMock()
+    load_table(conn, RECORDS, "test_table", overwrite=True)
+    assert mock_write.call_args[1]["overwrite"] is True
+
+
+@patch("src.connectors.snowflake_loader.write_pandas")
 def test_load_table_skips_empty_records(mock_write):
     conn = MagicMock()
     load_table(conn, [], "test_table")
@@ -33,8 +47,8 @@ def test_load_connector_data_calls_load_table_for_each_key(mock_load_table):
     tables = {"table_a": RECORDS, "table_b": RECORDS}
     load_connector_data(conn, tables)
     assert mock_load_table.call_count == 2
-    mock_load_table.assert_any_call(conn, RECORDS, "table_a")
-    mock_load_table.assert_any_call(conn, RECORDS, "table_b")
+    mock_load_table.assert_any_call(conn, RECORDS, "table_a", overwrite=False)
+    mock_load_table.assert_any_call(conn, RECORDS, "table_b", overwrite=False)
 
 
 def _fake_connector_cls(name):
