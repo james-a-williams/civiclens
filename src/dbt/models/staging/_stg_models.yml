@@ -196,9 +196,9 @@ models:
   - name: stg_openstates__bills
     description: >
       One row per state legislative bill across all tracked states. Sourced from the
-      OpenStates /bills endpoint. The _state field is added by the connector. Nested
-      fields (classification, sponsorships, actions, votes, versions) are left as raw
-      VARIANT for the intermediate layer.
+      OpenStates /bills endpoint with include=sponsorships,abstracts,votes. The _state
+      field is added by the connector. Sponsorships and votes are flattened into their
+      own staging models; this model surfaces bill-level fields only.
     columns:
       - name: bill_id
         description: OpenStates-assigned unique identifier for the bill (OCD bill ID format).
@@ -211,6 +211,10 @@ models:
           - not_null
       - name: title
         description: Official title of the bill as recorded in the state legislative system.
+      - name: abstract
+        description: Plain-text summary of the bill from the first entry in the OpenStates abstracts array. Null when not provided by the state.
+      - name: openstates_url
+        description: URL to the bill's page on openstates.org.
       - name: state
         description: Two-letter lowercase state abbreviation for the state where this bill was introduced.
         tests:
@@ -221,6 +225,59 @@ models:
         description: Timestamp when this bill record was first created in the OpenStates database.
       - name: updated_at
         description: Timestamp when this bill record was last updated in the OpenStates database.
+
+  - name: stg_openstates__bill_sponsorships
+    description: >
+      One row per legislator × bill sponsorship for state bills. Flattened from the
+      sponsorships VARIANT in the raw bills table using lateral flatten. Sourced from
+      the OpenStates /bills endpoint with include=sponsorships.
+    columns:
+      - name: bill_id
+        description: OpenStates OCD bill ID. Foreign key to stg_openstates__bills.
+        tests:
+          - not_null
+      - name: sponsor_name
+        description: Name of the sponsoring legislator or organization as recorded by OpenStates.
+      - name: entity_type
+        description: Whether the sponsor is a person or organization (e.g. "person", "organization").
+      - name: is_primary
+        description: True if this is the primary sponsor of the bill; false for co-sponsors.
+      - name: classification
+        description: Sponsorship classification as provided by the state (e.g. "primary", "cosponsor"). May differ from is_primary.
+      - name: openstates_person_id
+        description: OpenStates OCD person ID for the sponsoring legislator. Null for organization sponsors.
+      - name: load_at
+        description: UTC timestamp when the parent bill record was loaded into the raw layer.
+
+  - name: stg_openstates__bill_votes
+    description: >
+      One row per legislator × vote event for state bills. Double-flattened from the
+      votes VARIANT in the raw bills table: first across vote events, then across
+      individual legislator votes within each event. Sourced from the OpenStates /bills
+      endpoint with include=votes.
+    columns:
+      - name: bill_id
+        description: OpenStates OCD bill ID. Foreign key to stg_openstates__bills.
+        tests:
+          - not_null
+      - name: vote_event_id
+        description: OpenStates OCD vote event ID. Groups all legislator votes for a single roll call.
+        tests:
+          - not_null
+      - name: motion_text
+        description: Text of the motion being voted on (e.g. "Passage", "Amendment No. 1").
+      - name: result
+        description: Outcome of the vote event (e.g. "pass", "fail").
+      - name: vote_date
+        description: Date the vote was taken.
+      - name: voter_name
+        description: Name of the legislator casting the vote.
+      - name: openstates_person_id
+        description: OpenStates OCD person ID for the legislator. Used to join to stg_openstates__people.
+      - name: vote_option
+        description: How the legislator voted (e.g. "yes", "no", "abstain", "other").
+      - name: load_at
+        description: UTC timestamp when the parent bill record was loaded into the raw layer.
 
   - name: stg_census__congressional_districts
     description: >

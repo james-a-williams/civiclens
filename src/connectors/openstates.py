@@ -60,7 +60,10 @@ class OpenStatesConnector(BaseConnector):
         session: str | None = None,
         subject: str | None = None,
     ) -> list[dict]:
-        params: dict[str, Any] = {"jurisdiction": state.lower()}
+        params: dict[str, Any] = {
+            "jurisdiction": state.lower(),
+            "include": ["sponsorships", "abstracts", "votes"],
+        }
         if session:
             params["session"] = session
         if subject:
