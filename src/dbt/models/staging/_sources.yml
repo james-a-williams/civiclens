@@ -76,3 +76,36 @@ sources:
           city council, public advocate). Sourced from direct CSV downloads at
           nyccfb.info/follow-the-money/data-library/. One row per contribution.
           Schema documented in Key-Contribution.csv. Covers election cycles 2017–2025.
+
+      - name: congress_bills
+        description: >
+          Federal bills across all bill types (HR, S, HJRES, SJRES, HRES, SRES) for
+          the current Congress. One row per bill. Sourced from the Congress.gov
+          /bill/{congress}/{type} endpoint. Includes basic metadata and latest action;
+          sponsor and vote detail come from congress_member_sponsorships and
+          congress_house_votes / congress_senate_votes.
+
+      - name: congress_member_sponsorships
+        description: >
+          Sponsored and co-sponsored legislation for every member of the current
+          Congress. One row per member × bill. Sourced by calling the Congress.gov
+          /member/{bioguideId}/sponsored-legislation endpoint for each member.
+          The _bioguide_id field is added by the connector to tag the sponsoring member.
+
+      - name: congress_house_votes
+        description: >
+          House of Representatives roll-call votes for the current year. One row per
+          roll call, with individual member votes stored as a nested VARIANT array
+          (member_votes). Sourced from House Clerk XML at
+          clerk.house.gov/evs/{year}/roll{N:03d}.xml — no API key required. The
+          staging model stg_congress__house_votes flattens member_votes into one
+          row per legislator × roll call.
+
+      - name: congress_senate_votes
+        description: >
+          U.S. Senate roll-call votes for the current Congress session. One row per
+          vote, with individual senator votes stored as a nested VARIANT array
+          (member_votes). Sourced from Senate LIS XML at
+          senate.gov/legislative/LIS/roll_call_votes/... — no API key required.
+          The staging model stg_congress__senate_votes flattens member_votes into
+          one row per senator × vote.
