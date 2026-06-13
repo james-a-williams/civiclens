@@ -33,6 +33,29 @@ def _connection():
         return _conn
 
 
+def execute(sql: str, params: dict | None = None) -> None:
+    """Run a DML or DDL statement that returns no rows."""
+    for attempt in range(2):
+        conn = _connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(sql, params or {})
+            return
+        except DatabaseError:
+            cur.close()
+            if attempt == 0:
+                logger.warning("Snowflake execute failed, reconnecting")
+                with _lock:
+                    _connect()
+            else:
+                raise
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+
+
 def query(sql: str, params: dict | None = None) -> list[dict]:
     for attempt in range(2):
         conn = _connection()
