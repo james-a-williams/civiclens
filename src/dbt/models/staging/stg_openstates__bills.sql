@@ -2,7 +2,7 @@ select
     id                              as bill_id,
     identifier,
     title,
-    abstracts[0]:abstract::string   as abstract,
+    null::varchar                   as abstract,
     openstates_url,
     _state                          as state,
     session,

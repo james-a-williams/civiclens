@@ -88,124 +88,92 @@ def test_get_member_not_found_raises(connector):
         connector.get_member("X000000")
 
 
-@rsps.activate
-def test_get_committee_members_returns_flat_records(connector):
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/119/senate/SSFI",
-        json={
-            "committee": {
-                "systemCode": "SSFI",
-                "name": "Senate Committee on Finance",
-                "currentMembers": [
-                    {"bioguideId": "W000779", "rank": 1, "title": "Ranking Member"},
-                    {"bioguideId": "C000141", "rank": 2, "title": "Member"},
-                ],
-            }
-        },
-    )
-    members = connector.get_committee_members("senate", "SSFI", congress=119)
-    assert len(members) == 2
-    assert members[0]["bioguide_id"] == "W000779"
-    assert members[0]["committee_name"] == "Senate Committee on Finance"
-    assert members[0]["chamber"] == "senate"
-    assert members[0]["congress"] == 119
-    assert members[0]["subcommittee_code"] is None
+LEGISLATORS_BASE = (
+    "https://raw.githubusercontent.com/unitedstates/congress-legislators/refs/heads/main"
+)
+
+_COMMITTEES_YAML = """
+- thomas_id: SSFI
+  name: Senate Committee on Finance
+  type: senate
+  subcommittees:
+    - thomas_id: "01"
+      name: Health Care Subcommittee
+- thomas_id: HSWM
+  name: House Committee on Ways and Means
+  type: house
+"""
+
+_MEMBERSHIPS_YAML = """
+SSFI:
+  - bioguide: W000779
+    rank: 1
+    title: Ranking Member
+    party: minority
+  - bioguide: C000141
+    rank: 2
+    party: minority
+SSFI01:
+  - bioguide: W000779
+    rank: 1
+    party: minority
+HSWM:
+  - bioguide: S000051
+    rank: 1
+    title: Chairman
+    party: majority
+"""
 
 
 @rsps.activate
-def test_get_committee_members_skips_missing_bioguide(connector):
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/119/house/HSWM",
-        json={
-            "committee": {
-                "name": "House Ways and Means",
-                "currentMembers": [
-                    {"bioguideId": "S000051", "rank": 1},
-                    {"rank": 2},  # no bioguideId — should be skipped
-                ],
-            }
-        },
-    )
-    members = connector.get_committee_members("house", "HSWM", congress=119)
-    assert len(members) == 1
+def test_get_committee_memberships_returns_flat_records(connector):
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=_MEMBERSHIPS_YAML)
 
-
-@rsps.activate
-def test_get_committee_memberships_iterates_both_chambers(connector):
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/house",
-        json={
-            "committees": [{"systemCode": "HSWM", "name": "Ways and Means"}],
-            "pagination": {"next": None},
-        },
-    )
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/senate",
-        json={
-            "committees": [{"systemCode": "SSFI", "name": "Senate Finance"}],
-            "pagination": {"next": None},
-        },
-    )
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/119/house/HSWM",
-        json={
-            "committee": {
-                "name": "Ways and Means",
-                "currentMembers": [{"bioguideId": "S000051", "rank": 1}],
-            }
-        },
-    )
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/119/senate/SSFI",
-        json={
-            "committee": {
-                "name": "Senate Finance",
-                "currentMembers": [{"bioguideId": "W000779", "rank": 1}],
-            }
-        },
-    )
     memberships = connector.get_committee_memberships(congress=119)
-    assert len(memberships) == 2
-    chambers = {m["chamber"] for m in memberships}
-    assert chambers == {"house", "senate"}
+
+    assert len(memberships) == 4  # 2 SSFI + 1 SSFI01 (subcom) + 1 HSWM
+    senate = [m for m in memberships if m["chamber"] == "senate"]
+    house = [m for m in memberships if m["chamber"] == "house"]
+    assert len(senate) == 3
+    assert len(house) == 1
+
+    # Full committee rows
+    ssfi_rows = [m for m in memberships if m["committee_code"] == "SSFI" and m["subcommittee_code"] is None]
+    assert len(ssfi_rows) == 2
+    first = ssfi_rows[0]
+    assert first["bioguide_id"] == "W000779"
+    assert first["committee_name"] == "Senate Committee on Finance"
+    assert first["congress"] == 119
+    assert first["rank"] == 1
+    assert first["title"] == "Ranking Member"
 
 
 @rsps.activate
-def test_get_committee_memberships_skips_failed_committee(connector):
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/house",
-        json={
-            "committees": [
-                {"systemCode": "HSWM"},
-                {"systemCode": "HSAS"},
-            ],
-            "pagination": {"next": None},
-        },
-    )
-    rsps.add(rsps.GET, f"{BASE}/committee/senate",
-             json={"committees": [], "pagination": {"next": None}})
-    rsps.add(rsps.GET, f"{BASE}/committee/119/house/HSWM", status=500)
-    rsps.add(
-        rsps.GET,
-        f"{BASE}/committee/119/house/HSAS",
-        json={
-            "committee": {
-                "name": "Armed Services",
-                "currentMembers": [{"bioguideId": "S000051", "rank": 1}],
-            }
-        },
-    )
+def test_get_committee_memberships_maps_subcommittees(connector):
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=_MEMBERSHIPS_YAML)
+
     memberships = connector.get_committee_memberships(congress=119)
-    # HSWM failed (500) but HSAS succeeded — should get 1 record, not raise
-    assert len(memberships) == 1
-    assert memberships[0]["committee_code"] == "HSAS"
+
+    sub_rows = [m for m in memberships if m["subcommittee_code"] is not None]
+    assert len(sub_rows) == 1
+    sub = sub_rows[0]
+    assert sub["committee_code"] == "SSFI"
+    assert sub["committee_name"] == "Senate Committee on Finance"
+    assert sub["subcommittee_code"] == "SSFI01"
+    assert sub["subcommittee_name"] == "Health Care Subcommittee"
+
+
+@rsps.activate
+def test_get_committee_memberships_skips_missing_bioguide(connector):
+    memberships_with_gap = _MEMBERSHIPS_YAML + "  - rank: 3\n    party: minority\n"
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=memberships_with_gap)
+
+    memberships = connector.get_committee_memberships(congress=119)
+    bioguides = [m["bioguide_id"] for m in memberships]
+    assert None not in bioguides
 
 
 @rsps.activate
@@ -217,6 +185,10 @@ def test_fetch_all_returns_expected_keys(connector):
     rsps.add(rsps.GET, f"{BASE}/member", json=empty_members)
     rsps.add(rsps.GET, f"{BASE}/committee/house", json=empty_committees)
     rsps.add(rsps.GET, f"{BASE}/committee/senate", json=empty_committees)
+
+    # get_committee_memberships now fetches from unitedstates/congress-legislators
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=_MEMBERSHIPS_YAML)
 
     # Bill endpoints — one per bill type
     for bill_type in BILL_TYPES:
