@@ -3,6 +3,8 @@ import os
 import xml.etree.ElementTree as ET
 from typing import Any, Iterator
 
+import yaml
+
 from .base import BaseConnector, ConnectorError
 
 logger = logging.getLogger(__name__)
@@ -106,47 +108,68 @@ class CongressAPIConnector(BaseConnector):
     def get_committees(self, chamber: str = "house") -> list[dict]:
         return list(self._paginate_congress(f"/committee/{chamber}", {}, "committees"))
 
-    def get_committee_members(
-        self, chamber: str, committee_code: str, congress: int = CURRENT_CONGRESS
-    ) -> list[dict]:
-        """Return one flat record per member of a specific committee."""
-        data = self._get(f"/committee/{congress}/{chamber}/{committee_code}")
-        committee = data.get("committee", {})
-        committee_name = committee.get("name", "")
-        return [
-            {
-                "bioguide_id": m.get("bioguideId"),
-                "congress": congress,
-                "chamber": chamber,
-                "committee_code": committee_code,
-                "committee_name": committee_name,
-                "subcommittee_code": None,
-                "subcommittee_name": None,
-                "rank": m.get("rank"),
-                "title": m.get("title"),
-            }
-            for m in committee.get("currentMembers", [])
-            if m.get("bioguideId")
-        ]
+    _LEGISLATORS_BASE = (
+        "https://raw.githubusercontent.com/unitedstates/congress-legislators/refs/heads/main"
+    )
 
     def get_committee_memberships(self, congress: int = CURRENT_CONGRESS) -> list[dict]:
-        """Fetch member assignments for every full committee in both chambers."""
-        all_memberships: list[dict] = []
-        for chamber in ("house", "senate"):
-            committees = self.get_committees(chamber=chamber)
-            for committee in committees:
-                code = committee.get("systemCode")
-                if not code:
+        """Fetch committee memberships from the unitedstates/congress-legislators dataset.
+
+        Congress.gov API does not expose committee member lists; this uses the
+        community-maintained legislators dataset keyed by bioguide ID instead.
+        Only current memberships are available (no historical per-congress data).
+        """
+        logger.info("Congress API: fetching committee metadata (unitedstates/congress-legislators)")
+        resp = self._session.get(f"{self._LEGISLATORS_BASE}/committees-current.yaml", timeout=30)
+        resp.raise_for_status()
+        committees_raw = yaml.safe_load(resp.text)
+
+        # Build lookup: code -> {name, chamber} for both parents and subcommittees
+        committee_info: dict[str, dict] = {}
+        for c in committees_raw:
+            tid = c.get("thomas_id", "")
+            committee_info[tid] = {"name": c.get("name", ""), "chamber": c.get("type", "")}
+            for sub in c.get("subcommittees", []):
+                sub_code = tid + sub.get("thomas_id", "")
+                committee_info[sub_code] = {
+                    "name": sub.get("name", ""),
+                    "chamber": c.get("type", ""),
+                    "parent_id": tid,
+                    "parent_name": c.get("name", ""),
+                }
+
+        logger.info("Congress API: fetching committee membership data")
+        resp = self._session.get(
+            f"{self._LEGISLATORS_BASE}/committee-membership-current.yaml", timeout=30
+        )
+        resp.raise_for_status()
+        memberships_raw: dict = yaml.safe_load(resp.text)
+
+        records: list[dict] = []
+        for code, members in memberships_raw.items():
+            info = committee_info.get(code, {})
+            parent_id = info.get("parent_id")
+            for m in members:
+                bioguide_id = m.get("bioguide")
+                if not bioguide_id:
                     continue
-                try:
-                    members = self.get_committee_members(chamber, code, congress)
-                    all_memberships.extend(members)
-                except Exception as exc:
-                    logger.warning(
-                        "Congress API: committee members %s/%s failed: %s",
-                        chamber, code, exc,
-                    )
-        return all_memberships
+                records.append({
+                    "bioguide_id": bioguide_id,
+                    "congress": congress,
+                    "chamber": info.get("chamber", ""),
+                    "committee_code": parent_id or code,
+                    "committee_name": (
+                        info.get("parent_name", "") if parent_id else info.get("name", "")
+                    ),
+                    "subcommittee_code": code if parent_id else None,
+                    "subcommittee_name": info.get("name", "") if parent_id else None,
+                    "rank": m.get("rank"),
+                    "title": m.get("title"),
+                    "party": m.get("party"),
+                })
+
+        logger.info("Congress API: fetched %d committee membership rows", len(records))
+        return records
 
     def get_all_bills(self, congress: int = CURRENT_CONGRESS) -> list[dict]:
         """Fetch bills across all bill types for a given Congress."""

@@ -20,6 +20,7 @@ dependencies = [
     "dbt-snowflake>=1.8",
     "scikit-learn>=1.5",
     "textblob>=0.18",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]

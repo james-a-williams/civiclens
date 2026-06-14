@@ -31,7 +31,7 @@ members as (
 select
     x.person_key                                            as member_key,
     m.bioguide_id,
-    m.fec_candidate_id,
+    coalesce(x.fec_candidate_id, m.fec_candidate_id)       as fec_candidate_id,
     m.name,
     m.party,
     m.state,
