@@ -91,6 +91,8 @@ def test_get_member_not_found_raises(connector):
 LEGISLATORS_BASE = (
     "https://raw.githubusercontent.com/unitedstates/congress-legislators/refs/heads/main"
 )
+_COMMITTEES_URL = f"{LEGISLATORS_BASE}/committees-current.yaml"
+_MEMBERSHIPS_URL = f"{LEGISLATORS_BASE}/committee-membership-current.yaml"
 
 _COMMITTEES_YAML = """
 - thomas_id: SSFI
@@ -127,8 +129,8 @@ HSWM:
 
 @rsps.activate
 def test_get_committee_memberships_returns_flat_records(connector):
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=_MEMBERSHIPS_YAML)
+    rsps.add(rsps.GET, _COMMITTEES_URL, body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, _MEMBERSHIPS_URL, body=_MEMBERSHIPS_YAML)
 
     memberships = connector.get_committee_memberships(congress=119)
 
@@ -139,7 +141,10 @@ def test_get_committee_memberships_returns_flat_records(connector):
     assert len(house) == 1
 
     # Full committee rows
-    ssfi_rows = [m for m in memberships if m["committee_code"] == "SSFI" and m["subcommittee_code"] is None]
+    ssfi_rows = [
+        m for m in memberships
+        if m["committee_code"] == "SSFI" and m["subcommittee_code"] is None
+    ]
     assert len(ssfi_rows) == 2
     first = ssfi_rows[0]
     assert first["bioguide_id"] == "W000779"
@@ -151,8 +156,8 @@ def test_get_committee_memberships_returns_flat_records(connector):
 
 @rsps.activate
 def test_get_committee_memberships_maps_subcommittees(connector):
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=_MEMBERSHIPS_YAML)
+    rsps.add(rsps.GET, _COMMITTEES_URL, body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, _MEMBERSHIPS_URL, body=_MEMBERSHIPS_YAML)
 
     memberships = connector.get_committee_memberships(congress=119)
 
@@ -168,8 +173,8 @@ def test_get_committee_memberships_maps_subcommittees(connector):
 @rsps.activate
 def test_get_committee_memberships_skips_missing_bioguide(connector):
     memberships_with_gap = _MEMBERSHIPS_YAML + "  - rank: 3\n    party: minority\n"
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=memberships_with_gap)
+    rsps.add(rsps.GET, _COMMITTEES_URL, body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, _MEMBERSHIPS_URL, body=memberships_with_gap)
 
     memberships = connector.get_committee_memberships(congress=119)
     bioguides = [m["bioguide_id"] for m in memberships]
@@ -187,8 +192,8 @@ def test_fetch_all_returns_expected_keys(connector):
     rsps.add(rsps.GET, f"{BASE}/committee/senate", json=empty_committees)
 
     # get_committee_memberships now fetches from unitedstates/congress-legislators
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committees-current.yaml", body=_COMMITTEES_YAML)
-    rsps.add(rsps.GET, f"{LEGISLATORS_BASE}/committee-membership-current.yaml", body=_MEMBERSHIPS_YAML)
+    rsps.add(rsps.GET, _COMMITTEES_URL, body=_COMMITTEES_YAML)
+    rsps.add(rsps.GET, _MEMBERSHIPS_URL, body=_MEMBERSHIPS_YAML)
 
     # Bill endpoints — one per bill type
     for bill_type in BILL_TYPES:

@@ -119,7 +119,7 @@ class CongressAPIConnector(BaseConnector):
         community-maintained legislators dataset keyed by bioguide ID instead.
         Only current memberships are available (no historical per-congress data).
         """
-        logger.info("Congress API: fetching committee metadata from unitedstates/congress-legislators")
+        logger.info("Congress API: fetching committee metadata (unitedstates/congress-legislators)")
         resp = self._session.get(f"{self._LEGISLATORS_BASE}/committees-current.yaml", timeout=30)
         resp.raise_for_status()
         committees_raw = yaml.safe_load(resp.text)
@@ -158,7 +158,9 @@ class CongressAPIConnector(BaseConnector):
                     "congress": congress,
                     "chamber": info.get("chamber", ""),
                     "committee_code": parent_id or code,
-                    "committee_name": info.get("parent_name", "") if parent_id else info.get("name", ""),
+                    "committee_name": (
+                        info.get("parent_name", "") if parent_id else info.get("name", "")
+                    ),
                     "subcommittee_code": code if parent_id else None,
                     "subcommittee_name": info.get("name", "") if parent_id else None,
                     "rank": m.get("rank"),
